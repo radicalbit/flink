@@ -18,64 +18,64 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-	<modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-streaming-connectors-parent</artifactId>
-		<version>1.0-SNAPSHOT</version>
-		<relativePath>..</relativePath>
-	</parent>
+    <parent>
+        <groupId>org.apache.flink</groupId>
+        <artifactId>flink-streaming-connectors-parent</artifactId>
+        <version>1.0-SNAPSHOT</version>
+        <relativePath>..</relativePath>
+    </parent>
 
-	<artifactId>flink-connector-cassandra</artifactId>
-	<name>flink-connector-cassandra</name>
+    <artifactId>flink-connector-cassandra</artifactId>
+    <name>flink-connector-cassandra</name>
 
-	<packaging>jar</packaging>
+    <packaging>jar</packaging>
 
-	<properties>
-		<cassandra.version>2.1.9</cassandra.version>
-	</properties>
+    <properties>
+        <cassandra.version>2.1.9</cassandra.version>
+    </properties>
 
-	<dependencies>
-
-	<dependency>
-	    <groupId>org.apache.flink</groupId>
-	    <artifactId>flink-streaming-java</artifactId>
-	    <version>${project.version}</version>
-	</dependency>
-
-        <dependency>
-   	    <groupId>com.datastax.cassandra</groupId>
-   	    <artifactId>cassandra-driver-core</artifactId>
-	    <version>${cassandra.version}</version>
-	</dependency>
-	
-	<dependency>
-  	    <groupId>com.datastax.cassandra</groupId>
-   	    <artifactId>cassandra-driver-mapping</artifactId>
-	    <version>${cassandra.version}</version>
-	</dependency>
-
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-	    <version>${guava.version}</version>
-        </dependency>
-
-	<dependency>
-   	    <groupId>org.cassandraunit</groupId>
-	    <artifactId>cassandra-unit</artifactId>
-  	    <version>2.2.2.1</version>
-   	    <scope>test</scope>
-	</dependency>
+    <dependencies>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-streaming-java</artifactId>
-	    <version>{project.version}</version>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.datastax.cassandra</groupId>
+            <artifactId>cassandra-driver-core</artifactId>
+            <version>${cassandra.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.datastax.cassandra</groupId>
+            <artifactId>cassandra-driver-mapping</artifactId>
+            <version>${cassandra.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.cassandraunit</groupId>
+            <artifactId>cassandra-unit</artifactId>
+            <version>2.2.2.1</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-streaming-java</artifactId>
+            <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
         </dependency>
@@ -83,36 +83,36 @@ under the License.
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-tests</artifactId>
-	    <version>${project.version}</version>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-test-utils</artifactId>
-	    <version>${project.version}</version>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
     </dependencies>
 
-	<!-- <build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<rerunFailingTestsCount>3</rerunFailingTestsCount>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-failsafe-plugin</artifactId>
-				<configuration>
-					<rerunFailingTestsCount>3</rerunFailingTestsCount>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build> -->
+    <!-- <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <rerunFailingTestsCount>3</rerunFailingTestsCount>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <rerunFailingTestsCount>3</rerunFailingTestsCount>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build> -->
 
 </project>

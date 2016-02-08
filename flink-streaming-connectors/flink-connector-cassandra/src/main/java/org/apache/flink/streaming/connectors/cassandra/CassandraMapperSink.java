@@ -26,10 +26,9 @@ import com.datastax.driver.mapping.MappingManager;
 import com.datastax.driver.mapping.Mapper;
 import com.google.common.base.Preconditions;
 
-
 /**
- * 	Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which it uses Java annotation from {@link com.datastax.mapping}.
- * 	See example. {@link WriteCassandraMapperSink }
+ * 	Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which it uses annotations from {@link com.datastax.mapping}.
+ * 	See example. {@link org.apache.flink.streaming.connectors.cassandra.examples.WriteCassandraMapperSink }
  *
  * @param <IN> Type of the elements emitted by this sink
  */
@@ -44,12 +43,25 @@ public abstract class CassandraMapperSink<IN>
 
 	protected MappingManager mappingManager;
 
+	/**
+	 * Constructor for creating a CassandraMapperSink
+	 *
+	 * Attention! Into CQL query must be present the keyspace to ensure a correct execution.
+	 * i.e. INSERT INTO keyspace.table ..
+	 * @param clazz	Class<IN> instance
+	 */
 	public CassandraMapperSink(Class<IN> clazz) {
 		this(null,clazz);
 	}
 	
+	/**
+	 * The main constructor for creating CassandraMapperSink
+	 *
+	 * @param keyspace Cassandra keyspace
+	 * @param clazz	Class<IN> instance
+	 */
 	public CassandraMapperSink(String keyspace, Class<IN> clazz) {
-		Preconditions.checkNotNull(clazz, "Clazz is not set");
+		Preconditions.checkNotNull(clazz, "clazz is not set");
 		ClosureCleaner.ensureSerializable(clazz);
 		this.keyspace = keyspace;
 		this.clazz = clazz;

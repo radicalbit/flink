@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.cassandra;
+package org.apache.flink.batch.connectors.cassandra;
 
 import java.io.IOException;
 
@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.streaming.connectors.cassandra.ClusterConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

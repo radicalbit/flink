@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.cassandra.examples;
+package org.apache.flink.batch.connectors.cassandra.examples;
 
 import java.util.ArrayList;
 
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.streaming.connectors.cassandra.CassandraOutputFormat;
+import org.apache.flink.batch.connectors.cassandra.CassandraOutputFormat;
 
 import com.datastax.driver.core.Cluster.Builder;
 

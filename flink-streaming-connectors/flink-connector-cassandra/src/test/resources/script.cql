@@ -16,7 +16,7 @@
  */
 
 CREATE TABLE tuplesink(
-    id int,
+    id bigint,
     value text,
     PRIMARY KEY(id)
 );

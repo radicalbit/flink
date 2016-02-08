@@ -35,7 +35,7 @@ import com.datastax.driver.core.Session;
 import com.google.common.base.Preconditions;
 
 public abstract class CassandraInputFormat<OUT extends Tuple, IN extends InputSplit>
-	extends RichInputFormat<OUT, IN> implements ClusterBuilder {
+	extends RichInputFormat<OUT, IN> implements ClusterConfigurator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraInputFormat.class);
 
@@ -61,7 +61,7 @@ public abstract class CassandraInputFormat<OUT extends Tuple, IN extends InputSp
 
 	@Override
 	public void configure(Configuration parameters) {
-		this.cluster = clusterBuilder(Cluster.builder()).build();
+		this.cluster = configureCluster(Cluster.builder()).build();
 	}
 
 	@Override

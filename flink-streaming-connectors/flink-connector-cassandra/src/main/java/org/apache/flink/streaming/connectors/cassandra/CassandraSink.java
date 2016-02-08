@@ -21,28 +21,46 @@ import java.io.IOException;
 
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.Cluster.Builder;
 
+/**
+ * Flink Sink to save data into a Cassandra cluster. 
+ *
+ * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
+ */
 public abstract class CassandraSink<IN extends Tuple> extends BaseCassandraSink<IN> {
-
-	private static final Logger LOG = LoggerFactory.getLogger(CassandraSink.class);
 	
 	private static final long serialVersionUID = 1L;
 	
+	/** CQL query */
 	protected String query;
+	
+	/** CQL statement */
 	protected PreparedStatement ps;
 	
+	/**
+	 * Constructor for creating a CassandraSink
+	 * 
+	 * Attention! Into CQL query must be present the keyspace to ensure a correct execution.
+	 * i.e. INSERT INTO keyspace.table ..
+	 * @param query CQL query
+	 */
+	public CassandraSink(String query) {
+		this(null, query);
+	}
 	
+	/**
+	 * The main constructor for creating a CassandraSink
+	 * 
+	 * @param keyspace Cassandra keyspace where the query will be executed.
+	 * @param query	CQL query
+	 */
 	public CassandraSink(String keyspace, String query){
 		this.keyspace = keyspace;
 		this.query = query;
 	}
-	
 	
 	@Override
 	public void open(Configuration configuration) {
@@ -51,15 +69,13 @@ public abstract class CassandraSink<IN extends Tuple> extends BaseCassandraSink<
 	}
 
 	@Override
-	public abstract Builder clusterBuilder(Builder cluster);
-
-	@Override
 	public void invoke(IN value) throws Exception {
 		BoundStatement bd = ps.bind(extract(value));
 		try {
 			session.execute(bd);
 		} catch (Exception e) {
-			throw new IOException("writeRecord() failed",e);
+			logError(e.getMessage());
+			throw new IOException("invoke() failed", e);
 		}
 	}
 

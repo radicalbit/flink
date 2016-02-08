@@ -17,23 +17,32 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import java.io.IOException;
+
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import com.datastax.driver.mapping.Mapper;
+
 import com.datastax.driver.mapping.MappingManager;
+import com.datastax.driver.mapping.Mapper;
 import com.google.common.base.Preconditions;
 
+
+/**
+ * 	Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which it uses Java annotation from {@link com.datastax.mapping}.
+ * 	See example. {@link WriteCassandraMapperSink }
+ *
+ * @param <IN> Type of the elements emitted by this sink
+ */
 public abstract class CassandraMapperSink<IN> 
 	extends BaseCassandraSink<IN> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CassandraMapperSink.class);
-
 	private static final long serialVersionUID = 1L;
 
-	private Class<IN> clazz;
-	private Mapper<IN> mapper;
+	protected Class<IN> clazz;
+
+	protected Mapper<IN> mapper;
+
+	protected MappingManager mappingManager;
 
 	public CassandraMapperSink(Class<IN> clazz) {
 		this(null,clazz);
@@ -50,12 +59,25 @@ public abstract class CassandraMapperSink<IN>
 	public void open(Configuration configuration) {
 		super.open(configuration);
 
-		final MappingManager mappingManager = new MappingManager(session);
+		this.mappingManager = new MappingManager(session);
 		this.mapper = mappingManager.mapper(clazz);
 	}
 
 	@Override
-	public void invoke(IN value) throws Exception {
-		mapper.save(value);
+	public void invoke(IN value) throws IOException {
+		try {
+			mapper.save(value);
+		} catch (Exception e) {
+			logError(e.getMessage());
+			throw new IOException("invoke() failed", e);
+		}
+	}
+	
+	public Mapper<IN> getMapper() {
+		return this.mapper;
+	}
+	
+	public MappingManager getMappingManager() {
+		return this.mappingManager;
 	}
 }

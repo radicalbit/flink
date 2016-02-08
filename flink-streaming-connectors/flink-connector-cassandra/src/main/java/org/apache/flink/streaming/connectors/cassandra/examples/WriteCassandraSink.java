@@ -61,7 +61,7 @@ public class WriteCassandraSink {
 		source.addSink(new CassandraSink<Tuple2<String,Integer>>("test", "INSERT INTO writetuple (element1, element2) VALUES (?, ?)") {
 
 			@Override
-			public Builder clusterBuilder(Builder cluster) {
+			public Builder configureCluster(Builder cluster) {
 				return cluster.addContactPoint("127.0.0.1");
 			}
 		});

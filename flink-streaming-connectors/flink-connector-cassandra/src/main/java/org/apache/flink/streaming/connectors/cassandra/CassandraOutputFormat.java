@@ -30,14 +30,16 @@ import com.datastax.driver.core.Session;
 import com.google.common.base.Preconditions;
 
 public abstract class CassandraOutputFormat<OUT extends Tuple> 
-	extends RichOutputFormat<OUT> implements ClusterBuilder {
+	extends RichOutputFormat<OUT> implements ClusterConfigurator {
 
 	private static final long serialVersionUID = 1L;
-
+	
 	private transient Cluster cluster;
+	
 	private transient Session session;
 
 	private String keyspace;
+	
 	private String query;
 
 	protected PreparedStatement ps;
@@ -54,7 +56,7 @@ public abstract class CassandraOutputFormat<OUT extends Tuple>
 
 	@Override
 	public void configure(Configuration parameters) {
-		this.cluster = clusterBuilder(Cluster.builder()).build();
+		this.cluster = configureCluster(Cluster.builder()).build();
 		this.ps = session.prepare(query);
 	}
 

@@ -40,9 +40,9 @@ public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 	private static final String SELECT_QUERY = "SELECT * FROM test.tuplesink;";
 	private static final String INSERT_QUERY = "INSERT INTO tuplesink (id,value) VALUES (?,?);";
 
-	@Rule
+	/*@Rule
 	public CassandraCQLUnit cassandraCQLUnit = new CassandraCQLUnit(
-			new ClassPathCQLDataSet("script.cql",KEYSPACE));
+			new ClassPathCQLDataSet("script.cql",KEYSPACE));*/
 
 	@Test
 	public void write() throws Exception {
@@ -74,25 +74,25 @@ public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 					}
 				});
 		
-		source.addSink(new CassandraSink<Tuple2<Long, String>>(KEYSPACE, INSERT_QUERY) {
+		CassandraSink<Tuple2<Long, String>> sink = new CassandraSink<Tuple2<Long, String>>(KEYSPACE, INSERT_QUERY) {
 
 			@Override
-			public Builder clusterBuilder(Builder cluster) {
-				String hostIp = EmbeddedCassandraServerHelper.getHost();
-				int port = EmbeddedCassandraServerHelper.getNativeTransportPort();
-				return cluster.addContactPoints(hostIp).withPort(port);
+			public Builder configureCluster(Builder cluster) {
+				return cluster.addContactPoints("127.0.0.1");//.withPort(port);
 			}
-		});
+		};
+		
+		source.addSink(sink);
 		
 		env.execute();
 
-		ResultSet rs = cassandraCQLUnit.session.execute(SELECT_QUERY);
+		ResultSet rs = sink.getSession().execute(SELECT_QUERY);
 		Assert.assertEquals(rs.all().size(), COUNT);
 	}
 
-	@After
+	/*@After
 	public void clean() {
 		cassandraCQLUnit.session.execute("DROP TABLE test.tuplesink;");
 		cassandraCQLUnit.session.execute("DROP KEYSPACE test;");
-	}
+	}*/
 }

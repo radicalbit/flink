@@ -61,7 +61,7 @@ public class WriteCassandraMapperSink {
 		source.addSink(new CassandraMapperSink<Message>("test", Message.class){
 
 			@Override
-			public Builder clusterBuilder(Builder cluster) {
+			public Builder configureCluster(Builder cluster) {
 				return cluster.addContactPoint("127.0.0.1");
 			}
 		});

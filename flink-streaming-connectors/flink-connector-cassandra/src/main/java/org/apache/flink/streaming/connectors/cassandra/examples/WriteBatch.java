@@ -46,7 +46,7 @@ public class WriteBatch {
 		dataset.output(new CassandraOutputFormat<Tuple2<Integer,String>>("test", "INSERT INTO writebatch (numberz, stringerz) VALUES (?, ?)") {
 
 			@Override
-			public Builder clusterBuilder(Builder cluster) {
+			public Builder configureCluster(Builder cluster) {
 				return cluster
 						.addContactPoint("127.0.0.1");
 			}

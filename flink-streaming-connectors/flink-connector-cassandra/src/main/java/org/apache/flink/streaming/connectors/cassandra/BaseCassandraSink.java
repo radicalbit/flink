@@ -28,7 +28,7 @@ import com.datastax.driver.core.Session;
 /**
  *	BaseCassandraSink is the common abstract class of {@link CassandraMapperSink} and {@link CassandraSink}.
  *
- *	The {@link Cluster} is built via {@link #ClusterConfigurator.configureCluster(Cluster.Builder cluster) configureCluster} 
+ *	The {@link Cluster} is built via {@link ClusterConfigurator#configureCluster(Cluster.Builder cluster) configureCluster}
  *	inherited by {@link ClusterConfigurator}
  *
  *	The {@link Session} is liable to maintain the connection between our Sink and the Cassandra Cluster.

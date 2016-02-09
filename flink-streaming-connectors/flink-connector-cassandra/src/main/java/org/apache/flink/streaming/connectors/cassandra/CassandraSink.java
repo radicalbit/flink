@@ -35,7 +35,7 @@ public abstract class CassandraSink<IN extends Tuple> extends BaseCassandraSink<
 	private static final long serialVersionUID = 1L;
 	
 	/** CQL query */
-	protected String query;
+	protected final String query;
 	
 	/** CQL statement */
 	protected PreparedStatement ps;

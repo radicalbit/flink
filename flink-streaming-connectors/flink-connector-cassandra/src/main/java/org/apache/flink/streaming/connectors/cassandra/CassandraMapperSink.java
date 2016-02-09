@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import java.io.IOException;
+import java.io.Serializable;
 
-import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 
 import com.datastax.driver.mapping.MappingManager;
@@ -33,7 +33,7 @@ import com.google.common.base.Preconditions;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class CassandraMapperSink<IN> 
+public abstract class CassandraMapperSink<IN extends Serializable>
 	extends BaseCassandraSink<IN> {
 
 	private static final long serialVersionUID = 1L;
@@ -76,7 +76,6 @@ public abstract class CassandraMapperSink<IN>
 	 */
 	public CassandraMapperSink(String keyspace, Class<IN> clazz, Option... options) {
 		Preconditions.checkNotNull(clazz, "clazz is not set");
-		ClosureCleaner.ensureSerializable(clazz);
 		this.keyspace = keyspace;
 		this.clazz = clazz;
 		this.options = options;

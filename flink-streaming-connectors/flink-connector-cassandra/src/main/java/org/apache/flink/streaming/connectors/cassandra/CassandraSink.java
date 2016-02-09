@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
+import com.google.common.base.Preconditions;
 
 /**
  * Flink Sink to save data into a Cassandra cluster. 
@@ -58,10 +59,11 @@ public abstract class CassandraSink<IN extends Tuple> extends BaseCassandraSink<
 	 * @param query	CQL query
 	 */
 	public CassandraSink(String keyspace, String query){
+		Preconditions.checkNotNull(query, "query not set");
 		this.keyspace = keyspace;
 		this.query = query;
 	}
-	
+
 	@Override
 	public void open(Configuration configuration) {
 		super.open(configuration);

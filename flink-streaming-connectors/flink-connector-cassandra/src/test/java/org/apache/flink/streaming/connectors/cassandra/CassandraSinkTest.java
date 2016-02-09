@@ -45,6 +45,19 @@ public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 	public CassandraCQLUnit cassandraCQLUnit = new CassandraCQLUnit(
 			new ClassPathCQLDataSet("script.cql",KEYSPACE));
 
+	@Test(expected=NullPointerException.class)
+	public void queryNotSet(){
+		new CassandraSink<Tuple2<Long, String>>(KEYSPACE, null) {
+
+			@Override
+			public Builder configureCluster(Builder cluster) {
+				String hostIp = EmbeddedCassandraServerHelper.getHost();
+				int port = EmbeddedCassandraServerHelper.getNativeTransportPort();
+				return cluster.addContactPoints(hostIp).withPort(port);//.withSocketOptions(getSocketOptions());
+			}
+		};
+	}
+
 	@Test
 	public void write() throws Exception {
 

@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 
 import com.datastax.driver.mapping.MappingManager;
 import com.datastax.driver.mapping.Mapper;
+import com.datastax.driver.mapping.Mapper.Option;
 import com.google.common.base.Preconditions;
 
 /**
@@ -43,6 +44,8 @@ public abstract class CassandraMapperSink<IN>
 
 	protected MappingManager mappingManager;
 
+	protected final Option[] options;
+
 	/**
 	 * Constructor for creating a CassandraMapperSink
 	 *
@@ -55,30 +58,50 @@ public abstract class CassandraMapperSink<IN>
 	}
 	
 	/**
-	 * The main constructor for creating CassandraMapperSink
+	 * 	Constructor fo creating a CassandraMapperSink
 	 *
 	 * @param keyspace Cassandra keyspace
 	 * @param clazz	Class<IN> instance
 	 */
 	public CassandraMapperSink(String keyspace, Class<IN> clazz) {
+		this(keyspace, clazz, (Mapper.Option) null);
+	}
+
+	/**
+	 * The main constructor for creating CassandraMapperSink
+	 *
+	 * @param keyspace Cassandra keyspace
+	 * @param clazz	Class<IN> instance
+	 * @param options configuration for saving data
+	 */
+	public CassandraMapperSink(String keyspace, Class<IN> clazz, Option... options) {
 		Preconditions.checkNotNull(clazz, "clazz is not set");
 		ClosureCleaner.ensureSerializable(clazz);
 		this.keyspace = keyspace;
 		this.clazz = clazz;
+		this.options = options;
 	}
 	
 	@Override
 	public void open(Configuration configuration) {
 		super.open(configuration);
-
-		this.mappingManager = new MappingManager(session);
-		this.mapper = mappingManager.mapper(clazz);
+		try {
+			this.mappingManager = new MappingManager(session);
+			this.mapper = mappingManager.mapper(clazz);
+		} catch(Exception e) {
+			logError(e.getMessage());
+			throw new RuntimeException("Cannot create CassandraMapperSink with input: " + clazz.getSimpleName(), e);
+		}
 	}
 
 	@Override
 	public void invoke(IN value) throws IOException {
 		try {
-			mapper.save(value);
+			if(options == null){
+				mapper.save(value);
+			} else {
+				mapper.save(value, this.options);
+			}
 		} catch (Exception e) {
 			logError(e.getMessage());
 			throw new IOException("invoke() failed", e);

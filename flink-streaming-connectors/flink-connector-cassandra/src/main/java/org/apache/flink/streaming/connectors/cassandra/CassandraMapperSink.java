@@ -58,7 +58,7 @@ public abstract class CassandraMapperSink<IN>
 	}
 	
 	/**
-	 * 	Constructor fo creating a CassandraMapperSink
+	 * 	Constructor for creating a CassandraMapperSink
 	 *
 	 * @param keyspace Cassandra keyspace
 	 * @param clazz	Class<IN> instance

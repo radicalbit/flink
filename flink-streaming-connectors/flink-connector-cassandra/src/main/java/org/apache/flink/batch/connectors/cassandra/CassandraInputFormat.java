@@ -19,10 +19,14 @@ package org.apache.flink.batch.connectors.cassandra;
 
 import java.io.IOException;
 
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.streaming.connectors.cassandra.ClusterConfigurator;
@@ -35,8 +39,8 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.google.common.base.Preconditions;
 
-public abstract class CassandraInputFormat<OUT extends Tuple, IN extends InputSplit>
-	extends RichInputFormat<OUT, IN> implements ClusterConfigurator {
+public abstract class CassandraInputFormat<OUT extends Tuple>
+	extends RichInputFormat<Tuple2<Integer,String>, InputSplit> implements NonParallelInput, ClusterConfigurator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraInputFormat.class);
 
@@ -55,7 +59,7 @@ public abstract class CassandraInputFormat<OUT extends Tuple, IN extends InputSp
 	}
 
 	public CassandraInputFormat(String keyspace, String query){
-		Preconditions.checkNotNull(query, "Query not set");
+		Preconditions.checkNotNull(query, "query not set");
 		this.keyspace = keyspace;
 		this.query = query;
 	}
@@ -72,19 +76,7 @@ public abstract class CassandraInputFormat<OUT extends Tuple, IN extends InputSp
 	}
 
 	@Override
-	public IN[] createInputSplits(int minNumSplits) throws IOException {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public InputSplitAssigner getInputSplitAssigner(IN[] inputSplits) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public void open(IN split) throws IOException {
+	public void open(InputSplit split) throws IOException {
 		this.session = cluster.connect(keyspace);
 		this.rs = session.execute(query);
 	}
@@ -97,14 +89,29 @@ public abstract class CassandraInputFormat<OUT extends Tuple, IN extends InputSp
 		}
 		return res;
 	}
+	
+	//public abstract OUT mapRow(Row item);
 
 	@Override
-	public OUT nextRecord(OUT reuse) throws IOException {
+	public Tuple2<Integer,String> nextRecord(Tuple2<Integer,String> reuse) throws IOException {
 		final Row item = rs.one();
-		return mapRow(item);
+		
+		return new Tuple2<Integer,String>(item.getInt("number"), item.getString("stringz"));
+		//return mapRow(item);
+	}
+	
+	@Override
+	public InputSplit[] createInputSplits(int minNumSplits) throws IOException {
+		GenericInputSplit[] split = {
+			new GenericInputSplit(0, 1)
+		};
+		return split;
 	}
 
-	public abstract OUT mapRow(Row item);
+	@Override
+	public InputSplitAssigner getInputSplitAssigner(InputSplit[] inputSplits) {
+		return new DefaultInputSplitAssigner(inputSplits);
+	}
 
 	@Override
 	public void close() throws IOException {

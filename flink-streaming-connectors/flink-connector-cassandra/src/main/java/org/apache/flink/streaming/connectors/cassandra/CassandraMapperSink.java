@@ -17,15 +17,14 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import java.io.IOException;
 import java.io.Serializable;
 
 import org.apache.flink.configuration.Configuration;
 
 import com.datastax.driver.mapping.MappingManager;
 import com.datastax.driver.mapping.Mapper;
-import com.datastax.driver.mapping.Mapper.Option;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ListenableFuture;
 
 /**
  * Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which
@@ -36,7 +35,7 @@ import com.google.common.base.Preconditions;
  *            Type of the elements emitted by this sink
  */
 public abstract class CassandraMapperSink<IN extends Serializable> extends
-		BaseCassandraSink<IN> {
+		BaseCassandraSink<IN,Void> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -45,8 +44,6 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 	protected Mapper<IN> mapper;
 
 	protected MappingManager mappingManager;
-
-	protected final Option[] options;
 
 	/**
 	 * Constructor for creating a CassandraMapperSink
@@ -70,7 +67,7 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 	 *            Class<IN> instance
 	 */
 	public CassandraMapperSink(String keyspace, Class<IN> clazz) {
-		this(keyspace, clazz, (Option[]) null);
+		this(keyspace, null, clazz);
 	}
 
 	/**
@@ -83,12 +80,10 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 	 * @param options
 	 *            configuration for saving data
 	 */
-	public CassandraMapperSink(String keyspace, Class<IN> clazz,
-			Option... options) {
+	public CassandraMapperSink(String keyspace, String createQuery, Class<IN> clazz) {
+		super(keyspace,createQuery);
 		Preconditions.checkNotNull(clazz, "clazz is not set");
-		this.keyspace = keyspace;
 		this.clazz = clazz;
-		this.options = options;
 	}
 
 	@Override
@@ -106,20 +101,10 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 	}
 
 	@Override
-	public void invoke(IN value) throws IOException {
-		try {
-			if(options == null || options.length == 0) {
-				mapper.save(value);
-			}
-			else {
-				mapper.save(value, options);
-			}
-		} catch (Exception e) {
-			logError(e.getMessage());
-			throw new IOException("invoke() failed", e);
-		}
+	public ListenableFuture<Void> send(IN value) {
+		return  mapper.saveAsync(value);
 	}
-
+	
 	public Mapper<IN> getMapper() {
 		return this.mapper;
 	}

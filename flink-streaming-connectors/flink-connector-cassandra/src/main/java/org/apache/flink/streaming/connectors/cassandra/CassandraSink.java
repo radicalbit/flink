@@ -17,74 +17,62 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
-import java.io.IOException;
-
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.configuration.Configuration;
 
-import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.ListenableFuture;
 
 /**
- * Flink Sink to save data into a Cassandra cluster. 
+ * Flink Sink to save data into a Cassandra cluster.
  *
- * @param <IN> Type of the elements emitted by this sink, it must extend {@link Tuple}
+ * @param <IN>
+ *            Type of the elements emitted by this sink, it must extend
+ *            {@link Tuple}
  */
-public abstract class CassandraSink<IN extends Tuple> extends BaseCassandraSink<IN> {
-	
+public abstract class CassandraSink<IN extends Tuple> extends
+		BaseCassandraSink<IN, ResultSet> {
+
 	private static final long serialVersionUID = 1L;
-	
-	/** CQL query */
-	protected final String query;
-	
-	/** CQL statement */
-	protected PreparedStatement ps;
-	
-	/**
-	 * Constructor for creating a CassandraSink
-	 * 
-	 * Attention! Into CQL query must be present the keyspace to ensure a correct execution.
-	 * i.e. INSERT INTO keyspace.table ..
-	 * @param query CQL query
-	 */
-	public CassandraSink(String query) {
-		this(null, query);
+
+	protected final String insertQuery;
+
+	protected transient PreparedStatement ps;
+
+	public CassandraSink(String insertQuery) {
+		this(null, null, insertQuery);
 	}
-	
-	/**
-	 * The main constructor for creating a CassandraSink
-	 * 
-	 * @param keyspace Cassandra keyspace where the query will be executed.
-	 * @param query	CQL query
-	 */
-	public CassandraSink(String keyspace, String query){
-		Preconditions.checkNotNull(query, "query not set");
-		this.keyspace = keyspace;
-		this.query = query;
+
+	public CassandraSink(String keyspace, String insertQuery) {
+		this(keyspace, null, insertQuery);
+	}
+
+	public CassandraSink(String keyspace, String createQuery, String insertQuery) {
+		super(keyspace, createQuery);
+		Preconditions.checkNotNull(insertQuery, "insertQuery not set");
+		this.insertQuery = insertQuery;
 	}
 
 	@Override
 	public void open(Configuration configuration) {
 		super.open(configuration);
-		this.ps = session.prepare(query);
+		this.ps = session.prepare(insertQuery);
 	}
 
 	@Override
-	public void invoke(IN value) throws Exception {
-		BoundStatement bd = ps.bind(extract(value));
-		try {
-			session.execute(bd);
-		} catch (Exception e) {
-			logError(e.getMessage());
-			throw new IOException("invoke() failed", e);
-		}
+	public ListenableFuture<ResultSet> send(IN value) {
+
+		Object[] fields = extract(value);
+
+		return session.executeAsync(ps.bind(fields));
 	}
 
 	private Object[] extract(IN record) {
 		Object[] al = new Object[record.getArity()];
 		for (int i = 0; i < record.getArity(); i++) {
-			al[i] = (Object) record.getField(i);
+			al[i] = record.getField(i);
 		}
 		return al;
 	}

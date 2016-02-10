@@ -37,7 +37,7 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
-public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
+public class StreamCassandraSinkTest extends StreamingMultipleProgramsTestBase {
 	
 	private static final long COUNT = 20;
 	private static final String KEYSPACE = "test";
@@ -47,7 +47,7 @@ public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 
 	@Rule
 	public CassandraCQLUnit cassandraCQLUnit = new CassandraCQLUnit(
-			new ClassPathCQLDataSet("script.cql",KEYSPACE));
+			new ClassPathCQLDataSet("script-stream.cql",KEYSPACE));
 
 	//
 	//		CassandraSink.java
@@ -61,7 +61,7 @@ public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 			public Builder configureCluster(Builder cluster) {
 				String hostIp = EmbeddedCassandraServerHelper.getHost();
 				int port = EmbeddedCassandraServerHelper.getNativeTransportPort();
-				return cluster.addContactPoints(hostIp).withPort(port);//.withSocketOptions(getSocketOptions());
+				return cluster.addContactPoints(hostIp).withPort(port);
 			}
 		};
 	}
@@ -188,11 +188,5 @@ public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 
 		ResultSet rs =  cassandraCQLUnit.session.execute(SELECT_QUERY_MAPPER);
 		Assert.assertEquals(rs.all().size(), COUNT);		
-	}
-
-	@After
-	public void clean() {
-		cassandraCQLUnit.session.execute("DROP TABLE test.tuplesink;");
-		cassandraCQLUnit.session.execute("DROP KEYSPACE test;");
 	}
 }

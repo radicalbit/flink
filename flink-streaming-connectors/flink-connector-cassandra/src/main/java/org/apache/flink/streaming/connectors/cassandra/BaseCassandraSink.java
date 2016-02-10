@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import java.io.IOException;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.slf4j.Logger;
@@ -24,6 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 
 /**
  *	BaseCassandraSink is the common abstract class of {@link CassandraMapperSink} and {@link CassandraSink}.
@@ -35,7 +40,7 @@ import com.datastax.driver.core.Session;
  *
  * @param <IN> Type of the elements emitted by this sink
  */
-public abstract class BaseCassandraSink<IN> extends RichSinkFunction<IN> implements ClusterConfigurator {
+public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> implements ClusterConfigurator {
 
 	private static final long serialVersionUID = 1L;
 
@@ -47,8 +52,16 @@ public abstract class BaseCassandraSink<IN> extends RichSinkFunction<IN> impleme
 	/** Session to Cassandra */
 	protected transient Session session; 	
 	
-	protected String keyspace;
-
+	protected final String keyspace;
+	protected final String createQuery;
+	
+	protected transient Throwable asyncException = null;
+	
+	public BaseCassandraSink(String keyspace, String createQuery){
+		this.keyspace= keyspace;
+		this.createQuery = createQuery;
+	}
+	
 	@Override
 	public void open(Configuration configuration) {
 		
@@ -58,12 +71,47 @@ public abstract class BaseCassandraSink<IN> extends RichSinkFunction<IN> impleme
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Cluster connection to Cassandra has been open. State: {} ",session.getState());
 		}
+		
+		if(createQuery != null) {
+			session.execute(createQuery);
+		}
 	}
+	
+	@Override
+	public void invoke(IN value) throws Exception{
+		checkException();
+		ListenableFuture<V> result = send(value);
+		catchException(result);
+	};
 
+	public abstract ListenableFuture<V> send(IN value);
+	
 	@Override
 	public void close() {
 		session.close();
 		cluster.close();
+	}
+	
+	protected void checkException() throws IOException{
+		if(asyncException != null) {
+			throw new IOException("invoke() failed", asyncException);
+		}
+	}
+	
+	protected void catchException(ListenableFuture<V> future) {
+		
+		Futures.addCallback(future, new FutureCallback<V>() {
+			
+			@Override
+			public void onSuccess(V ignored) {
+				
+			}
+
+			@Override
+			public void onFailure(Throwable t) {
+				asyncException = t;
+			}
+		});
 	}
 
 	protected void logError(String error){

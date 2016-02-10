@@ -28,13 +28,15 @@ import com.datastax.driver.mapping.Mapper.Option;
 import com.google.common.base.Preconditions;
 
 /**
- * 	Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which it uses annotations from {@link com.datastax.mapping}.
- * 	See example. {@link org.apache.flink.streaming.connectors.cassandra.examples.WriteCassandraMapperSink }
+ * Flink Sink to save data into a Cassandra cluster using {@link Mapper}, which
+ * it uses annotations from {@link com.datastax.mapping}. See example.
+ * {@link org.apache.flink.streaming.connectors.cassandra.examples.WriteCassandraMapperSink }
  *
- * @param <IN> Type of the elements emitted by this sink
+ * @param <IN>
+ *            Type of the elements emitted by this sink
  */
-public abstract class CassandraMapperSink<IN extends Serializable>
-	extends BaseCassandraSink<IN> {
+public abstract class CassandraMapperSink<IN extends Serializable> extends
+		BaseCassandraSink<IN> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -49,68 +51,79 @@ public abstract class CassandraMapperSink<IN extends Serializable>
 	/**
 	 * Constructor for creating a CassandraMapperSink
 	 *
-	 * Attention! Into CQL query must be present the keyspace to ensure a correct execution.
-	 * i.e. INSERT INTO keyspace.table ..
-	 * @param clazz	Class<IN> instance
+	 * Attention! Into CQL query must be present the keyspace to ensure a
+	 * correct execution. i.e. INSERT INTO keyspace.table ..
+	 * 
+	 * @param clazz
+	 *            Class<IN> instance
 	 */
 	public CassandraMapperSink(Class<IN> clazz) {
-		this(null,clazz);
+		this(null, clazz);
 	}
-	
+
 	/**
-	 * 	Constructor for creating a CassandraMapperSink
+	 * Constructor for creating a CassandraMapperSink
 	 *
-	 * @param keyspace Cassandra keyspace
-	 * @param clazz	Class<IN> instance
+	 * @param keyspace
+	 *            Cassandra keyspace
+	 * @param clazz
+	 *            Class<IN> instance
 	 */
 	public CassandraMapperSink(String keyspace, Class<IN> clazz) {
-		this(keyspace, clazz, (Mapper.Option) null);
+		this(keyspace, clazz, (Option[]) null);
 	}
 
 	/**
 	 * The main constructor for creating CassandraMapperSink
 	 *
-	 * @param keyspace Cassandra keyspace
-	 * @param clazz	Class<IN> instance
-	 * @param options configuration for saving data
+	 * @param keyspace
+	 *            Cassandra keyspace
+	 * @param clazz
+	 *            Class<IN> instance
+	 * @param options
+	 *            configuration for saving data
 	 */
-	public CassandraMapperSink(String keyspace, Class<IN> clazz, Option... options) {
+	public CassandraMapperSink(String keyspace, Class<IN> clazz,
+			Option... options) {
 		Preconditions.checkNotNull(clazz, "clazz is not set");
 		this.keyspace = keyspace;
 		this.clazz = clazz;
 		this.options = options;
 	}
-	
+
 	@Override
 	public void open(Configuration configuration) {
 		super.open(configuration);
 		try {
 			this.mappingManager = new MappingManager(session);
 			this.mapper = mappingManager.mapper(clazz);
-		} catch(Exception e) {
+		} catch (Exception e) {
 			logError(e.getMessage());
-			throw new RuntimeException("Cannot create CassandraMapperSink with input: " + clazz.getSimpleName(), e);
+			throw new RuntimeException(
+					"Cannot create CassandraMapperSink with input: "
+							+ clazz.getSimpleName(), e);
 		}
 	}
 
 	@Override
 	public void invoke(IN value) throws IOException {
 		try {
-			if(options == null){
+			if(options == null || options.length == 0) {
 				mapper.save(value);
-			} else {
-				mapper.save(value, this.options);
+			}
+			else {
+				mapper.save(value, options);
 			}
 		} catch (Exception e) {
 			logError(e.getMessage());
 			throw new IOException("invoke() failed", e);
 		}
 	}
-	
+
 	public Mapper<IN> getMapper() {
 		return this.mapper;
 	}
-	
+
 	public MappingManager getMappingManager() {
 		return this.mappingManager;
 	}

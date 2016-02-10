@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import java.io.Serializable;
+
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,19 +33,25 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import com.datastax.driver.core.Cluster.Builder;
-import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.mapping.annotations.Column;
+import com.datastax.driver.mapping.annotations.Table;
 
 public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 	
 	private static final long COUNT = 20;
 	private static final String KEYSPACE = "test";
 	private static final String SELECT_QUERY = "SELECT * FROM test.tuplesink;";
+	private static final String SELECT_QUERY_MAPPER = "SELECT * FROM test.mappersink;";
 	private static final String INSERT_QUERY = "INSERT INTO tuplesink (id,value) VALUES (?,?);";
 
 	@Rule
 	public CassandraCQLUnit cassandraCQLUnit = new CassandraCQLUnit(
 			new ClassPathCQLDataSet("script.cql",KEYSPACE));
+
+	//
+	//		CassandraSink.java
+	//
 
 	@Test(expected=NullPointerException.class)
 	public void queryNotSet(){
@@ -59,7 +67,7 @@ public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 	}
 
 	@Test
-	public void write() throws Exception {
+	public void write() {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -94,16 +102,92 @@ public class CassandraSinkTest extends StreamingMultipleProgramsTestBase {
 			public Builder configureCluster(Builder cluster) {
 				String hostIp = EmbeddedCassandraServerHelper.getHost();
 				int port = EmbeddedCassandraServerHelper.getNativeTransportPort();
-				return cluster.addContactPoints(hostIp).withPort(port);//.withSocketOptions(getSocketOptions());
+				return cluster.addContactPoints(hostIp).withPort(port);
 			}
 		};
 		
 		source.addSink(sink);
 		
-		env.execute();
+		try {
+			env.execute();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 		ResultSet rs =  cassandraCQLUnit.session.execute(SELECT_QUERY);
 		Assert.assertEquals(rs.all().size(), COUNT);
+	}
+
+	//
+	//		CassandraMapperSink.java
+	//
+
+	@Test(expected=NullPointerException.class)
+	public void clazzNotSet() {
+
+		class Foo implements Serializable {} 
+		new CassandraMapperSink<Foo>(null) {
+	
+			@Override
+			public Builder configureCluster(Builder cluster) {
+				String hostIp = EmbeddedCassandraServerHelper.getHost();
+				int port = EmbeddedCassandraServerHelper.getNativeTransportPort();
+				return cluster.addContactPoints(hostIp).withPort(port);
+			}
+		};
+	}
+	
+	@Test
+	public void write2() {
+		
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		
+		DataStreamSource<Pojo> source = env
+				.addSource(new SourceFunction<Pojo>() {
+
+					private boolean running = true;
+					private volatile long cnt = 0;
+
+					@Override
+					public void run(SourceContext<Pojo> ctx)
+							throws Exception {
+						while (running) {
+							ctx.collect(new Pojo(cnt,"cassandra-" + cnt));
+							cnt++;
+							if (cnt == COUNT) {
+								cancel();
+							}
+						}
+					}
+
+					@Override
+					public void cancel() {
+						running = false;
+					}
+				});
+		
+		CassandraMapperSink<Pojo> sink = new CassandraMapperSink<Pojo>(Pojo.class) {
+
+			@Override
+			public Builder configureCluster(Builder cluster) {
+				String hostIp = EmbeddedCassandraServerHelper.getHost();
+				int port = EmbeddedCassandraServerHelper.getNativeTransportPort();
+				return cluster.addContactPoints(hostIp).withPort(port);
+			}
+		};
+		
+		source.addSink(sink);
+		
+		try {
+			env.execute();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		ResultSet rs =  cassandraCQLUnit.session.execute(SELECT_QUERY_MAPPER);
+		Assert.assertEquals(rs.all().size(), COUNT);		
 	}
 
 	@After

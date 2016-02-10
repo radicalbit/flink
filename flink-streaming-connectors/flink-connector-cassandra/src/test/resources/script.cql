@@ -20,3 +20,9 @@ CREATE TABLE tuplesink(
     value text,
     PRIMARY KEY(id)
 );
+
+CREATE TABLE mappersink(
+    id bigint,
+    value text,
+    PRIMARY KEY(id)
+);

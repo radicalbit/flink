@@ -53,5 +53,4 @@ public class Message implements Serializable {
 	public int hashCode() {
 		return message.hashCode();
 	}
-
 }

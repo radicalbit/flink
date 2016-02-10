@@ -24,7 +24,6 @@ import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.tuple.Tuple;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
@@ -40,7 +39,7 @@ import com.datastax.driver.core.Session;
 import com.google.common.base.Preconditions;
 
 public abstract class CassandraInputFormat<OUT extends Tuple>
-	extends RichInputFormat<Tuple2<Integer,String>, InputSplit> implements NonParallelInput, ClusterConfigurator {
+	extends RichInputFormat<OUT, InputSplit> implements NonParallelInput, ClusterConfigurator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraInputFormat.class);
 
@@ -90,14 +89,13 @@ public abstract class CassandraInputFormat<OUT extends Tuple>
 		return res;
 	}
 	
-	//public abstract OUT mapRow(Row item);
+	public abstract OUT mapRow(Row item);
 
 	@Override
-	public Tuple2<Integer,String> nextRecord(Tuple2<Integer,String> reuse) throws IOException {
+	public OUT nextRecord(OUT reuse) throws IOException {
 		final Row item = rs.one();
 		
-		return new Tuple2<Integer,String>(item.getInt("number"), item.getString("stringz"));
-		//return mapRow(item);
+		return mapRow(item);
 	}
 	
 	@Override

@@ -65,6 +65,6 @@ public class WriteBatch {
 					}
 				});
 		
-		inputDS.print();;
+		inputDS.print();
 	}
 }

@@ -42,15 +42,11 @@ public abstract class CassandraSink<IN extends Tuple> extends
 	protected transient PreparedStatement ps;
 
 	public CassandraSink(String insertQuery) {
-		this(null, null, insertQuery);
+		this(null, insertQuery);
 	}
 
-	public CassandraSink(String keyspace, String insertQuery) {
-		this(keyspace, null, insertQuery);
-	}
-
-	public CassandraSink(String keyspace, String createQuery, String insertQuery) {
-		super(keyspace, createQuery);
+	public CassandraSink(String createQuery, String insertQuery) {
+		super(createQuery);
 		Preconditions.checkNotNull(insertQuery, "insertQuery not set");
 		this.insertQuery = insertQuery;
 	}

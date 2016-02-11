@@ -15,13 +15,15 @@
  * limitations under the License.
  */
 
-CREATE TABLE tuplesink(
+CREATE KEYSPACE test  WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 };
+
+CREATE TABLE test.tuplesink(
     id bigint,
     value text,
     PRIMARY KEY(id)
 );
 
-CREATE TABLE mappersink(
+CREATE TABLE test.mappersink(
     id bigint,
     value text,
     PRIMARY KEY(id)

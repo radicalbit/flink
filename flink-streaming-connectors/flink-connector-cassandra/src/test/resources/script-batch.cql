@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+CREATE KEYSPACE test  WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 };
  
 CREATE TABLE test.batchz (
 number int,

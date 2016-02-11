@@ -27,27 +27,24 @@ import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.cassandraunit.CassandraCQLUnit;
 import org.cassandraunit.dataset.cql.ClassPathCQLDataSet;
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
-import org.junit.After;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
 import com.datastax.driver.core.Cluster.Builder;
 import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.mapping.annotations.Column;
-import com.datastax.driver.mapping.annotations.Table;
 
 public class StreamCassandraSinkTest extends StreamingMultipleProgramsTestBase {
 	
 	private static final long COUNT = 20;
-	private static final String KEYSPACE = "test";
 	private static final String SELECT_QUERY = "SELECT * FROM test.tuplesink;";
 	private static final String SELECT_QUERY_MAPPER = "SELECT * FROM test.mappersink;";
 	private static final String INSERT_QUERY = "INSERT INTO tuplesink (id,value) VALUES (?,?);";
 
 	@Rule
 	public CassandraCQLUnit cassandraCQLUnit = new CassandraCQLUnit(
-			new ClassPathCQLDataSet("script-stream.cql",KEYSPACE));
+			new ClassPathCQLDataSet("script-stream.cql"));
 
 	//
 	//		CassandraSink.java
@@ -55,7 +52,7 @@ public class StreamCassandraSinkTest extends StreamingMultipleProgramsTestBase {
 
 	@Test(expected=NullPointerException.class)
 	public void queryNotSet(){
-		new CassandraSink<Tuple2<Long, String>>(KEYSPACE, null) {
+		new CassandraSink<Tuple2<Long, String>>(null) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {
@@ -96,7 +93,7 @@ public class StreamCassandraSinkTest extends StreamingMultipleProgramsTestBase {
 					}
 				});
 		
-		CassandraSink<Tuple2<Long, String>> sink = new CassandraSink<Tuple2<Long, String>>(KEYSPACE, INSERT_QUERY) {
+		CassandraSink<Tuple2<Long, String>> sink = new CassandraSink<Tuple2<Long, String>>(INSERT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {

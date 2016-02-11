@@ -52,13 +52,11 @@ public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> imple
 	/** Session to Cassandra */
 	protected transient Session session; 	
 	
-	protected final String keyspace;
 	protected final String createQuery;
 	
 	protected transient Throwable asyncException = null;
 	
-	public BaseCassandraSink(String keyspace, String createQuery){
-		this.keyspace= keyspace;
+	public BaseCassandraSink(String createQuery){
 		this.createQuery = createQuery;
 	}
 	
@@ -66,7 +64,7 @@ public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> imple
 	public void open(Configuration configuration) {
 		
 		this.cluster = configureCluster(Cluster.builder()).build();
-		this.session = cluster.connect(keyspace);
+		this.session = cluster.connect();
 		
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Cluster connection to Cassandra has been open. State: {} ",session.getState());

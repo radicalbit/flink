@@ -41,9 +41,9 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 
 	protected Class<IN> clazz;
 
-	protected Mapper<IN> mapper;
+	protected transient Mapper<IN> mapper;
 
-	protected MappingManager mappingManager;
+	protected transient MappingManager mappingManager;
 
 	/**
 	 * Constructor for creating a CassandraMapperSink
@@ -58,30 +58,17 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 		this(null, clazz);
 	}
 
-	/**
-	 * Constructor for creating a CassandraMapperSink
-	 *
-	 * @param keyspace
-	 *            Cassandra keyspace
-	 * @param clazz
-	 *            Class<IN> instance
-	 */
-	public CassandraMapperSink(String keyspace, Class<IN> clazz) {
-		this(keyspace, null, clazz);
-	}
 
 	/**
 	 * The main constructor for creating CassandraMapperSink
 	 *
-	 * @param keyspace
-	 *            Cassandra keyspace
 	 * @param clazz
 	 *            Class<IN> instance
 	 * @param options
 	 *            configuration for saving data
 	 */
-	public CassandraMapperSink(String keyspace, String createQuery, Class<IN> clazz) {
-		super(keyspace,createQuery);
+	public CassandraMapperSink(String createQuery, Class<IN> clazz) {
+		super(createQuery);
 		Preconditions.checkNotNull(clazz, "clazz is not set");
 		this.clazz = clazz;
 	}
@@ -103,13 +90,5 @@ public abstract class CassandraMapperSink<IN extends Serializable> extends
 	@Override
 	public ListenableFuture<Void> send(IN value) {
 		return  mapper.saveAsync(value);
-	}
-	
-	public Mapper<IN> getMapper() {
-		return this.mapper;
-	}
-
-	public MappingManager getMappingManager() {
-		return this.mappingManager;
 	}
 }

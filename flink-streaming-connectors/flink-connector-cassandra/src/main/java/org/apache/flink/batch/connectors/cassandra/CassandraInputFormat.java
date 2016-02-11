@@ -46,8 +46,7 @@ public abstract class CassandraInputFormat<OUT extends Tuple> extends
 			.getLogger(CassandraInputFormat.class);
 
 	private static final long serialVersionUID = 1L;
-
-	private String keyspace;
+	
 	private String query;
 
 	private transient Cluster cluster;
@@ -55,13 +54,9 @@ public abstract class CassandraInputFormat<OUT extends Tuple> extends
 
 	private volatile ResultSet rs;
 
-	public CassandraInputFormat(String query) {
-		this(null, query);
-	}
 
-	public CassandraInputFormat(String keyspace, String query) {
+	public CassandraInputFormat(String query) {
 		Preconditions.checkNotNull(query, "query not set");
-		this.keyspace = keyspace;
 		this.query = query;
 	}
 
@@ -78,7 +73,7 @@ public abstract class CassandraInputFormat<OUT extends Tuple> extends
 
 	@Override
 	public void open(InputSplit split) throws IOException {
-		this.session = cluster.connect(keyspace);
+		this.session = cluster.connect();
 		this.rs = session.execute(query);
 	}
 

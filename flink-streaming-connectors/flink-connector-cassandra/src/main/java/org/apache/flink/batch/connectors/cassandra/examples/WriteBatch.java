@@ -29,9 +29,8 @@ import com.datastax.driver.core.Cluster.Builder;
 
 public class WriteBatch {
 
-	private static final String KEYSPACE = "test";
-	private static final String CREATE_TABLE = "CREATE TABLE batchz (number int, strinz text, PRIMARY KEY(int, text));";
-	private static final String INSERT_QUERY = "INSERT INTO batchz (number, stringz) VALUES (?,?);";
+	private static final String CREATE_TABLE = "CREATE TABLE test.batchz (number int, stringz text, PRIMARY KEY(number, stringz));";
+	private static final String INSERT_QUERY = "INSERT INTO test.batchz (number, stringz) VALUES (?,?);";
 	private static final String SELECT_QUERY = "SELECT number, stringz FROM batchz;";
 	
 
@@ -45,50 +44,27 @@ public class WriteBatch {
 			collection.add(new Tuple2<Integer, String>(i, "stringz " + i));
 		}
 
-		DataSet<Tuple2<Integer, String>> dataSet = env
-				.fromCollection(collection);
+		DataSet<Tuple2<Integer, String>> dataSet = env.fromCollection(collection);
 
-		dataSet.output(new CassandraOutputFormat<Tuple2<Integer, String>>(
-				KEYSPACE, CREATE_TABLE, INSERT_QUERY) {
+		dataSet.output(new CassandraOutputFormat<Tuple2<Integer, String>>(CREATE_TABLE, INSERT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {
 				return cluster.addContactPoints("127.0.0.1");
 			}
 		});
+		
+		env.execute("Write");
 
 		DataSet<Tuple2<Integer, String>> inputDS = env
-				.createInput(new CassandraInputFormat<Tuple2<Integer, String>>(
-						KEYSPACE, SELECT_QUERY) {
+				.createInput(new CassandraInputFormat<Tuple2<Integer, String>>(SELECT_QUERY) {
 
 					@Override
 					public Builder configureCluster(Builder cluster) {
 						return cluster.addContactPoints("127.0.0.1");
 					}
 				});
-
-		inputDS.print();
-
-		/*
-		 * int insert = 20; if(args != null && args.length > 0 ){ insert =
-		 * Integer.parseInt(args[0]); } ExecutionEnvironment environment =
-		 * ExecutionEnvironment.getExecutionEnvironment();
-		 * 
-		 * ArrayList<Tuple2<Integer,String>> collection = new
-		 * ArrayList<>(insert); for (int i = 0; i < insert; i++) {
-		 * collection.add(new Tuple2<Integer, String>(i, "stringerz " +i)); }
-		 * 
-		 * DataSet<Tuple2<Integer, String>> dataset =
-		 * environment.fromCollection(collection);
-		 * 
-		 * dataset.output(new
-		 * CassandraOutputFormat<Tuple2<Integer,String>>("test",
-		 * "INSERT INTO writebatch (numberz, stringerz) VALUES (?, ?)") {
-		 * 
-		 * @Override public Builder configureCluster(Builder cluster) { return
-		 * cluster .addContactPoint("127.0.0.1"); } });
-		 * 
-		 * environment.execute("Write Batch Cassandra");
-		 */
+		
+		inputDS.print();;
 	}
 }

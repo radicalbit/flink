@@ -38,7 +38,6 @@ public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 
 	private static final long serialVersionUID = 1L;
 
-	private final String keyspace;
 	private final String createQuery;
 	private final String insertQuery;
 
@@ -49,16 +48,11 @@ public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 	private transient Throwable asyncException = null;
 
 	public CassandraOutputFormat(String insertQuery) {
-		this(null, null, insertQuery);
+		this(null, insertQuery);
 	}
 
-	public CassandraOutputFormat(String keyspace, String insertQuery) {
-		this(keyspace, null, insertQuery);
-	}
-
-	public CassandraOutputFormat(String keyspace, String createQuery, String insertQuery) {
+	public CassandraOutputFormat(String createQuery, String insertQuery) {
 		Preconditions.checkNotNull(insertQuery, "insertQuery not set");
-		this.keyspace = keyspace;
 		this.insertQuery = insertQuery;
 		this.createQuery = createQuery;
 	}
@@ -71,12 +65,13 @@ public abstract class CassandraOutputFormat<OUT extends Tuple> extends
 	public void open(int taskNumber, int numTasks) throws IOException {
 
 		this.cluster = configureCluster(Cluster.builder()).build();
-		this.session = cluster.connect(keyspace);
-		this.ps = session.prepare(insertQuery);
+		this.session = cluster.connect();
 		
 		if (createQuery != null) {
 			session.execute(createQuery);
 		}
+		
+		this.ps = session.prepare(insertQuery);
 	}
 
 	@Override

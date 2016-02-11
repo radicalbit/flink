@@ -33,13 +33,12 @@ import com.datastax.driver.core.Cluster.Builder;
 
 public class BatchConnectorCassandraTest {
 
-	private static final String KEYSPACE = "test";
-	private static final String INSERT_QUERY = "INSERT INTO batchz (number, stringz) VALUES (?,?);";
-	private static final String SELECT_QUERY = "SELECT number, stringz FROM batchz;";
+	private static final String INSERT_QUERY = "INSERT INTO test.batchz (number, stringz) VALUES (?,?);";
+	private static final String SELECT_QUERY = "SELECT number, stringz FROM test.batchz;";
 
 	@Rule
 	public CassandraCQLUnit cassandraCQLUnit = new CassandraCQLUnit(
-			new ClassPathCQLDataSet("script-batch.cql",KEYSPACE));
+			new ClassPathCQLDataSet("script-batch.cql"));
 	
 	@Test
 	public void write(){
@@ -53,7 +52,7 @@ public class BatchConnectorCassandraTest {
 		
 		DataSet<Tuple2<Integer,String>> dataSet = env.fromCollection(collection); 
 		
-		dataSet.output(new CassandraOutputFormat<Tuple2<Integer,String>>(KEYSPACE, INSERT_QUERY) {
+		dataSet.output(new CassandraOutputFormat<Tuple2<Integer,String>>(INSERT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {
@@ -63,7 +62,7 @@ public class BatchConnectorCassandraTest {
 			}
 		});
 		
-		DataSet<Tuple2<Integer,String>> inputDS = env.createInput(new CassandraInputFormat<Tuple2<Integer,String>>(KEYSPACE, SELECT_QUERY) {
+		DataSet<Tuple2<Integer,String>> inputDS = env.createInput(new CassandraInputFormat<Tuple2<Integer,String>>(SELECT_QUERY) {
 
 			@Override
 			public Builder configureCluster(Builder cluster) {

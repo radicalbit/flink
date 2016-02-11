@@ -15,7 +15,7 @@
  * limitations under the License.
  */
  
-CREATE TABLE batchz (
+CREATE TABLE test.batchz (
 number int,
 stringz text,
 PRIMARY KEY(number,stringz)

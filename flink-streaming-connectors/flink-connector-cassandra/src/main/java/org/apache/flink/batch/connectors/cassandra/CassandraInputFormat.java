@@ -38,10 +38,12 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.google.common.base.Preconditions;
 
-public abstract class CassandraInputFormat<OUT extends Tuple>
-	extends RichInputFormat<OUT, InputSplit> implements NonParallelInput, ClusterConfigurator {
+public abstract class CassandraInputFormat<OUT extends Tuple> extends
+		RichInputFormat<OUT, InputSplit> implements NonParallelInput,
+		ClusterConfigurator {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CassandraInputFormat.class);
+	private static final Logger LOG = LoggerFactory
+			.getLogger(CassandraInputFormat.class);
 
 	private static final long serialVersionUID = 1L;
 
@@ -50,14 +52,14 @@ public abstract class CassandraInputFormat<OUT extends Tuple>
 
 	private transient Cluster cluster;
 	private transient Session session;
-	
+
 	private volatile ResultSet rs;
 
 	public CassandraInputFormat(String query) {
 		this(null, query);
 	}
 
-	public CassandraInputFormat(String keyspace, String query){
+	public CassandraInputFormat(String keyspace, String query) {
 		Preconditions.checkNotNull(query, "query not set");
 		this.keyspace = keyspace;
 		this.query = query;
@@ -88,21 +90,21 @@ public abstract class CassandraInputFormat<OUT extends Tuple>
 		}
 		return res;
 	}
-	
-	public abstract OUT mapRow(Row item);
 
 	@Override
 	public OUT nextRecord(OUT reuse) throws IOException {
 		final Row item = rs.one();
+
+		for (int i = 0; i < reuse.getArity(); i++) {
+			reuse.setField(item.getObject(i), i);
+		}
 		
-		return mapRow(item);
+		return reuse;
 	}
-	
+
 	@Override
 	public InputSplit[] createInputSplits(int minNumSplits) throws IOException {
-		GenericInputSplit[] split = {
-			new GenericInputSplit(0, 1)
-		};
+		GenericInputSplit[] split = { new GenericInputSplit(0, 1) };
 		return split;
 	}
 

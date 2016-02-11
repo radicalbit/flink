@@ -14,7 +14,6 @@ import org.junit.Test;
 import org.junit.Assert;
 
 import com.datastax.driver.core.Cluster.Builder;
-import com.datastax.driver.core.Row;
 
 public class BatchConnectorCassandraTest {
 
@@ -56,16 +55,10 @@ public class BatchConnectorCassandraTest {
 				int port = EmbeddedCassandraServerHelper.getNativeTransportPort();
 				return cluster.addContactPoints(hostIp).withPort(port);
 			}
-
-			@Override
-			public Tuple2<Integer, String> mapRow(Row item) {
-				// TODO Auto-generated method stub
-				return new Tuple2<Integer, String>(item.getInt(0), item.getString(1));
-			}
 		});
 		
 		try {
-			env.execute();
+			//env.execute();
 			Assert.assertEquals(inputDS.count(), 20L);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block

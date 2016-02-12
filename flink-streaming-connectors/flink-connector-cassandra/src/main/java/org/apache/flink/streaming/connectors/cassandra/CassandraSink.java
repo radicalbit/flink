@@ -22,7 +22,6 @@ import org.apache.flink.configuration.Configuration;
 
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
-import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
 
 /**
@@ -47,7 +46,7 @@ public abstract class CassandraSink<IN extends Tuple> extends
 
 	public CassandraSink(String createQuery, String insertQuery) {
 		super(createQuery);
-		Preconditions.checkNotNull(insertQuery, "insertQuery not set");
+		checkNullOrEmpty(insertQuery, "insertQuery not set");
 		this.insertQuery = insertQuery;
 	}
 

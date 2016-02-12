@@ -29,21 +29,16 @@ import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.streaming.connectors.cassandra.ClusterConfigurator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 public abstract class CassandraInputFormat<OUT extends Tuple> extends
 		RichInputFormat<OUT, InputSplit> implements NonParallelInput,
 		ClusterConfigurator {
-
-	private static final Logger LOG = LoggerFactory
-			.getLogger(CassandraInputFormat.class);
 
 	private static final long serialVersionUID = 1L;
 	
@@ -51,12 +46,12 @@ public abstract class CassandraInputFormat<OUT extends Tuple> extends
 
 	private transient Cluster cluster;
 	private transient Session session;
-
-	private volatile ResultSet rs;
-
+	private transient ResultSet rs;
 
 	public CassandraInputFormat(String query) {
-		Preconditions.checkNotNull(query, "query not set");
+		if(Strings.isNullOrEmpty(query)){
+			throw new IllegalArgumentException("query not set");
+		}
 		this.query = query;
 	}
 

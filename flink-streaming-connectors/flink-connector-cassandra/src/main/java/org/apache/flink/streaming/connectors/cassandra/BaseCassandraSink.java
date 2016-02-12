@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -110,6 +111,12 @@ public abstract class BaseCassandraSink<IN,V> extends RichSinkFunction<IN> imple
 				asyncException = t;
 			}
 		});
+	}
+	
+	protected void checkNullOrEmpty(String s, String message){
+		if(Strings.isNullOrEmpty(s)){
+			throw new IllegalArgumentException(message);
+		}
 	}
 
 	protected void logError(String error){

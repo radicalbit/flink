@@ -17,19 +17,14 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.Scanner;
 
 import com.datastax.driver.core.Session;
 import org.apache.cassandra.service.CassandraDaemon;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.ForkableFlinkMiniCluster;
 import org.apache.flink.test.util.TestBaseUtils;
@@ -51,17 +46,20 @@ public class StreamCassandraSinkTest extends TestBaseUtils {
     //
     //  QUERY
     //
-    private static final String CREATE_KEYSPACE_QUERY = "CREATE KEYSPACE test WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 };";
-    private static final String CREATE_QUERY = "CREATE TABLE test.tuplesink(id bigint PRIMARY KEY, value text);";
-	private static final String INSERT_QUERY = "INSERT INTO test.tuplesink (id,value) VALUES (?,?);";
-    private static final String SELECT_QUERY = "SELECT * FROM test.tuplesink;";
+    private static final String CREATE_KEYSPACE = "CREATE KEYSPACE test WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 };";
     private static final String DROP_KEYSPACE = "DROP KEYSPACE test";
 
-    private static final String CREATE_QUERY_MAPPER = "CREATE TABLE test.mappersink(id bigint,value text,PRIMARY KEY(id))";
-    private static final String SELECT_QUERY_MAPPER = "SELECT * FROM test.mappersink;";
+    private static final String CREATE_TABLE = "CREATE TABLE test.tuplesink(id bigint PRIMARY KEY, value text);";
+	private static final String INSERT_QUERY = "INSERT INTO test.tuplesink (id,value) VALUES (?,?);";
+    private static final String SELECT_QUERY = "SELECT * FROM test.tuplesink;";
+    private static final String DROP_TABLE = "DROP TABLE test.tuplesink;";
 
-    private static final int DEFAULT_PARALLELISM = 2;
+    private static final String CREATE_TABLE_MAPPER = "CREATE TABLE test.mappersink(id bigint,value text,PRIMARY KEY(id))";
+    private static final String SELECT_QUERY_MAPPER = "SELECT * FROM test.mappersink;";
+    private static final String DROP_TABLE_MAPPER = "DROP TABLE test.mappersink;";
+
     private static ForkableFlinkMiniCluster cluster;
+    private static final int DEFAULT_PARALLELISM = 2;
 
     private static class EmbeddedCassandraService {
         CassandraDaemon cassandraDaemon;
@@ -77,49 +75,47 @@ public class StreamCassandraSinkTest extends TestBaseUtils {
         }
     }
 
-
     @ClassRule
     public static TemporaryFolder testFolder = new TemporaryFolder();
 
+
     @BeforeClass
-    public static void setup() throws Exception {
+    public static void startCassandra() throws Exception {
+
         cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false, false, true);
         TestStreamEnvironment.setAsContext(cluster, DEFAULT_PARALLELISM);
-    }
 
-    @BeforeClass
-    public static void startCassandra() throws IOException {
-            //generate temporary files
-            ClassLoader classLoader = StreamCassandraSinkTest.class.getClassLoader();
-            File file = new File(classLoader.getResource("cassandra.yaml").getFile());
-            File tmp = testFolder.newFile("cassandra.yaml");
-            testFolder.newFolder("data");
-            testFolder.newFolder("commit");
-            testFolder.newFolder("cache");
-            BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
+        //generate temporary files
+        ClassLoader classLoader = StreamCassandraSinkTest.class.getClassLoader();
+        File file = new File(classLoader.getResource("cassandra.yaml").getFile());
+        File tmp = testFolder.newFile("cassandra.yaml");
+        testFolder.newFolder("data");
+        testFolder.newFolder("commit");
+        testFolder.newFolder("cache");
+        BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
 
-            //copy cassandra.yaml; inject absolute paths into cassandra.yaml
-            Scanner scanner = new Scanner(file);
-            while (scanner.hasNextLine()) {
-                    String line = scanner.nextLine();
-                    line = line.replace("$PATH", "'"  + tmp.getParentFile());
-                    b.write(line  + "\n");
-                    b.flush();
-                }
-            scanner.close();
+        //copy cassandra.yaml; inject absolute paths into cassandra.yaml
+        Scanner scanner = new Scanner(file);
+        while (scanner.hasNextLine()) {
+                String line = scanner.nextLine();
+                line = line.replace("$PATH", "'"  + tmp.getParentFile());
+                b.write(line  + "\n");
+                b.flush();
+            }
+        scanner.close();
 
 
-            // Tell cassandra where the configuration files are.
-            // Use the test configuration file.
-            System.setProperty("cassandra.config", "file:" + File.separator + File.separator + File.separator + tmp.getAbsolutePath());
+        // Tell cassandra where the configuration files are.
+        // Use the test configuration file.
+        System.setProperty("cassandra.config", "file:" + File.separator + File.separator + File.separator + tmp.getAbsolutePath());
 
-            cassandra = new EmbeddedCassandraService();
-            cassandra.start();
+        cassandra = new EmbeddedCassandraService();
+        cassandra.start();
 
-            clusterCassandra = Cluster.builder().addContactPoint("127.0.0.1");
-            session = clusterCassandra.build().connect();
+        clusterCassandra = Cluster.builder().addContactPoint("127.0.0.1");
+        session = clusterCassandra.build().connect();
 
-            session.execute(CREATE_KEYSPACE_QUERY);
+        session.execute(CREATE_KEYSPACE);
     }
 
 	@Test(expected = IllegalArgumentException.class)
@@ -142,7 +138,7 @@ public class StreamCassandraSinkTest extends TestBaseUtils {
 				.addSource(new SourceFunction<Tuple2<Long, String>>() {
 
 					private boolean running = true;
-					private volatile long cnt = 0;
+					private long cnt = 0;
 
 					@Override
 					public void run(SourceContext<Tuple2<Long, String>> ctx)
@@ -163,7 +159,7 @@ public class StreamCassandraSinkTest extends TestBaseUtils {
 				});
 
 		
-		source.addSink(new CassandraSink<Tuple2<Long, String>>(CREATE_QUERY, INSERT_QUERY) {
+		source.addSink(new CassandraSink<Tuple2<Long, String>>(CREATE_TABLE, INSERT_QUERY) {
 
             @Override
             public Builder configureCluster(Builder cluster) {
@@ -180,6 +176,7 @@ public class StreamCassandraSinkTest extends TestBaseUtils {
 
 		ResultSet rs =  session.execute(SELECT_QUERY);
 		Assert.assertEquals(rs.all().size(), COUNT);
+        session.execute(DROP_TABLE);
 	}
 
 	//
@@ -209,7 +206,7 @@ public class StreamCassandraSinkTest extends TestBaseUtils {
                 .addSource(new SourceFunction<Pojo>() {
 
                     private boolean running = true;
-                    private volatile long cnt = 0;
+                    private long cnt = 0;
 
                     @Override
                     public void run(SourceContext<Pojo> ctx) throws Exception {
@@ -228,7 +225,7 @@ public class StreamCassandraSinkTest extends TestBaseUtils {
                     }
                 });
 
-        source.addSink(new CassandraMapperSink<Pojo>(CREATE_QUERY_MAPPER,Pojo.class) {
+        source.addSink(new CassandraMapperSink<Pojo>(CREATE_TABLE_MAPPER,Pojo.class) {
 
             @Override
             public Builder configureCluster(Builder cluster) {
@@ -245,16 +242,14 @@ public class StreamCassandraSinkTest extends TestBaseUtils {
 
         ResultSet rs = session.execute(SELECT_QUERY_MAPPER);
         Assert.assertEquals(rs.all().size(), COUNT);
+        session.execute(DROP_TABLE_MAPPER);
     }
 
     @AfterClass
-    public static void afterClass() {
+    public static void afterClass() throws Exception {
         session.execute(DROP_KEYSPACE);
         cassandra.stop();
-    }
 
-    @AfterClass
-    public static void teardown() throws Exception {
         TestStreamEnvironment.unsetAsContext();
         stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
     }

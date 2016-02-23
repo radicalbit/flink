@@ -60,7 +60,7 @@ package object acceptPartialFunctions {
     def mapPartitionWith[R: TypeInformation: ClassTag](fun: Seq[T] => R): DataSet[R] =
       ds.mapPartition {
         (it, out) =>
-          out.collect(fun(it.to[Seq[T]]))
+          out.collect(fun(it.to[Seq]))
       }
 
     /**
@@ -104,7 +104,7 @@ package object acceptPartialFunctions {
     def reduceGroupWith[R: TypeInformation: ClassTag](fun: Seq[T] => R): DataSet[R] =
       ds.reduceGroup {
         (it, out) =>
-          out.collect(fun(it.to[Seq[T]]))
+          out.collect(fun(it.to[Seq]))
       }
 
     /**
@@ -149,7 +149,7 @@ package object acceptPartialFunctions {
     def projecting[O: TypeInformation: ClassTag](fun: (Seq[L], Seq[R]) => O): DataSet[O] =
       dataset {
         (left, right) =>
-          fun(left.to[Seq[L]], right.to[Seq[R]])
+          fun(left.to[Seq], right.to[Seq])
       }
 
   }

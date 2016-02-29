@@ -22,24 +22,18 @@ import scala.tools.nsc.io.File
 
 object AkkaReceiverExample extends Conf {
 
-	val filename = "/Users/andreasella/Desktop/ciao.txt"
+  def main(args: Array[String]): Unit = {
 
-	def main(args: Array[String]): Unit = {
+    val filename = args(0)
+    val actorSystem = ActorSystem.create("actor-test", conf(4000))
+    val actor = actorSystem.actorOf(Props(new ActorReceiver(filename)), "receiver")
+  }
 
-		val actorSystem = ActorSystem.create("actor-test", conf(4000))
-		val actor = actorSystem.actorOf(Props(new ActorReceiver(filename)), "receiver")
-
-		val address = actorSystem.asInstanceOf[ExtendedActorSystem].provider.getDefaultAddress
-		val path = actor.path.toStringWithAddress(address)
-		print(path)
-	}
-
-	class ActorReceiver(filename: String) extends Actor with ActorLogging {
-		override def receive = {
-			case l =>
-				log.info(s"###### $l")
-				println(s"######## $l")
-				File(filename).appendAll(s"$l \n")
-		}
-	}
+  class ActorReceiver(filename: String) extends Actor with ActorLogging {
+    override def receive = {
+      case l : String =>
+        log.debug(s"### element $l")
+        File(filename).appendAll(s"$l \n")
+    }
+  }
 }

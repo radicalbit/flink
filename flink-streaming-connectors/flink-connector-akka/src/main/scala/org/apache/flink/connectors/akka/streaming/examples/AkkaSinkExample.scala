@@ -24,35 +24,35 @@ import org.apache.flink.streaming.api.scala._
 
 object AkkaSinkExample extends Conf {
 
-  val path = "akka.tcp://actor-test@127.0.0.1:4000/user/receiver"
+  val actorReceiverPath = "akka.tcp://actor-test@127.0.0.1:4000/user/receiver"
 
-  def main(args: Array[String]) : Unit = {
+  def main(args: Array[String]): Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
-    val stream =  env.generateSequence(0,1000L).map(x => x.toString)
-    stream.addSink(new AkkaSink[String]("test", path, conf(5000)))
+    val stream = env.generateSequence(0, 1000L).map(x => x.toString)
+    stream.addSink(new AkkaSink[String]("test", actorReceiverPath, conf(5000)))
 
     env.execute("AkkaSinkExample")
   }
 }
 
-abstract class Conf  {
+abstract class Conf {
 
-	def conf(port:Int) = ConfigFactory.parseString {
-		s"""
-		   |akka {
-		   |  actor {
-		   |    provider = "akka.remote.RemoteActorRefProvider"
-		   |  }
-		   |  remote {
-		   |    netty.tcp {
-		   |      hostname = "127.0.0.1"
-		   |      port = $port
-		   |    }
-		   | }
-		   |}
-     """.stripMargin
-	}
+  def conf(port: Int) = ConfigFactory.parseString {
+    s"""
+       |akka {
+       |  actor {
+       |    provider = "akka.remote.RemoteActorRefProvider"
+       |  }
+       |  remote {
+       |    netty.tcp {
+       |      hostname = "127.0.0.1"
+       |      port = $port
+       |    }
+       | }
+       |}
+       |""".stripMargin
+  }
 }

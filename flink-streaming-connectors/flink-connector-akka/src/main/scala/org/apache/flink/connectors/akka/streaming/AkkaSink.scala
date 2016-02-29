@@ -20,7 +20,6 @@ package org.apache.flink.connectors.akka.streaming
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-import akka.actor.Actor.Receive
 import akka.actor._
 import com.typesafe.config.Config
 import org.apache.flink.configuration.Configuration
@@ -30,31 +29,44 @@ import scala.concurrent.duration.FiniteDuration
 
 class AkkaSink[IN](sinkName: String, path: String, config: Config*) extends RichSinkFunction[IN] {
 
+  @transient private var actorSystem: ActorSystem = _
 
-	@transient private var actorSystem: ActorSystem = _
+  @transient private var handler: ActorRef = _
 
-	@transient private var handler: ActorRef = _
+  @throws[IllegalStateException]
+  override def open(parameters: Configuration): Unit = {
+    val index = getRuntimeContext.getIndexOfThisSubtask
+    val systemName = s"$sinkName-$index"
 
-	@throws[IllegalStateException]
-	override def open(parameters: Configuration): Unit = {
-		val index = getRuntimeContext.getIndexOfThisSubtask
-		val systemName = s"$sinkName-$index"
+    val timeout = new FiniteDuration(10, TimeUnit.SECONDS)
+    actorSystem = ActorSystem(systemName, config(index))
 
+    val remote = try {
+      Await.result(actorSystem.actorSelection(path).resolveOne(timeout), timeout)
+    } catch {
+      case e: Throwable => throw new IllegalStateException(s"Actor not found: $path", e)
+    }
+     handler = actorSystem.actorOf(Props(new ActorHandler(remote)))
+  }
 
-		val timeout = new FiniteDuration(10, TimeUnit.SECONDS)
-		actorSystem = ActorSystem(systemName, config(index))
-		handler = try {
-			Await.result(actorSystem.actorSelection(path).resolveOne(timeout),timeout)
-		} catch {
-			case e: Throwable => throw new IllegalStateException(s"Actor not found: $path", e)
-		}
-	}
-	@throws[IOException]
-	override def invoke(value: IN): Unit = {
-		handler ! value
-	}
+  override def invoke(value: IN): Unit = {
+    handler ! value
+  }
 
-	override def close(): Unit = {
-		actorSystem.shutdown()
-	}
+  override def close(): Unit = {
+    actorSystem.shutdown()
+  }
+}
+
+final class ActorHandler(remote: ActorRef) extends Actor {
+
+  context.watch(remote)
+  override def receive: Receive = {
+    case Terminated(actorRef) if remote == actorRef =>
+      throw new IOException(s"Actor ${remote.path} has been terminated")
+      context.stop(self)
+    case Terminated(actorRef) if self == actorRef =>
+      context.unwatch(remote)
+     case element => remote ! element
+  }
 }

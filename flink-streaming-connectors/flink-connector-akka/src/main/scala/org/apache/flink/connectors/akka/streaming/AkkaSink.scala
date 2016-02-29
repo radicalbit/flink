@@ -67,6 +67,6 @@ final class ActorHandler(remote: ActorRef) extends Actor {
       context.stop(self)
     case Terminated(actorRef) if self == actorRef =>
       context.unwatch(remote)
-     case element => remote ! element
+    case element => remote ! element
   }
 }

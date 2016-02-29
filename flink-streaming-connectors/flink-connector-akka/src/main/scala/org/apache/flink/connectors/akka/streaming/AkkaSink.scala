@@ -20,82 +20,41 @@ package org.apache.flink.connectors.akka.streaming
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+import akka.actor.Actor.Receive
 import akka.actor._
-import akka.util.Timeout
 import com.typesafe.config.Config
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success}
 
-class AkkaSink[IN](sinkName: String, path: String, config:Config*) extends RichSinkFunction[IN] {
+class AkkaSink[IN](sinkName: String, path: String, config: Config*) extends RichSinkFunction[IN] {
 
-  @transient private var actorSystem: ActorSystem = _
-  @transient private var handler: ActorRef = _
 
-  private var asyncException: Throwable = null
+	@transient private var actorSystem: ActorSystem = _
 
-  override def open(parameters: Configuration): Unit = {
-    val index = getRuntimeContext.getIndexOfThisSubtask
-    val systemName = s"$sinkName-$index"
+	@transient private var handler: ActorRef = _
 
-    actorSystem = ActorSystem.create(systemName,config(index))
-    handler = actorSystem.actorOf(ActorHandler.props(ActorPath.fromString(path)))
-  }
+	@throws[IllegalStateException]
+	override def open(parameters: Configuration): Unit = {
+		val index = getRuntimeContext.getIndexOfThisSubtask
+		val systemName = s"$sinkName-$index"
 
-  override def invoke(value: IN): Unit = {
-    if(asyncException != null){
-      throw new IOException(asyncException)
-    }
-    handler ! value
-  }
 
-  override def close(): Unit = {
-    actorSystem.shutdown()
-  }
+		val timeout = new FiniteDuration(10, TimeUnit.SECONDS)
+		actorSystem = ActorSystem(systemName, config(index))
+		handler = try {
+			Await.result(actorSystem.actorSelection(path).resolveOne(timeout),timeout)
+		} catch {
+			case e: Throwable => throw new IllegalStateException(s"Actor not found: $path", e)
+		}
+	}
+	@throws[IOException]
+	override def invoke(value: IN): Unit = {
+		handler ! value
+	}
 
-  object ActorHandler {
-    def props(path: ActorPath) = Props(new ActorHandler(path))
-  }
-
-  /**
-    * Actor to manage connection between SinkFunction and Remote Actor
-    *
-    * @param path ActorPath address to remote actor
-    */
-  final class ActorHandler(path: ActorPath) extends Actor with ActorLogging {
-
-    private var ref: Option[ActorRef] = None
-
-    // buffer to collect elements until ActorRef has returned.
-    private val queue = mutable.Queue.empty[IN]
-
-    val timeout = new FiniteDuration(10, TimeUnit.SECONDS)
-    val actorSelection = context.actorSelection(path)
-    actorSelection.resolveOne(timeout) onComplete {
-      case Success(actorRef) =>
-        ref =  Some(actorRef)
-        context watch ref.get
-      case Failure(e) =>
-        asyncException = new Throwable(s"Actor: $path is not alive", e)
-    }
-
-    override def receive: Receive = {
-      case Terminated(actoRef) if ref.isDefined =>
-        asyncException = new Throwable(s"Actor: $path has been stopped")
-      case element: IN if ref.isDefined =>
-        queue += element
-      case element: IN if ref.isEmpty =>
-        emptyBuffer()
-        actorSelection ! element
-    }
-
-   def emptyBuffer(): Unit = {
-      while(queue.nonEmpty){
-        ref.get ! queue.dequeue()
-      }
-   }
-  }
+	override def close(): Unit = {
+		actorSystem.shutdown()
+	}
 }

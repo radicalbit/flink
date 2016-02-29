@@ -18,41 +18,41 @@
 package org.apache.flink.connectors.akka.streaming.examples
 
 
-import com.typesafe.config.{ConfigFactory, Config}
+import com.typesafe.config.ConfigFactory
 import org.apache.flink.connectors.akka.streaming.AkkaSink
-import org.apache.flink.streaming.api.datastream.DataStreamSource
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.scala._
 
-object AkkaSinkExample {
+object AkkaSinkExample extends Conf {
 
-  val path = "akka.tcp://actor-test@127.0.0.1:2343/user/receiver"
-  val filename = "/Users/andreasella/Desktop/ciao.txt"
-  val conf = ConfigFactory.parseString {
-    s"""
-       |akka {
-       |  actor {
-       |    provider = "akka.remote.RemoteActorRefProvider"
-       |  }
-       |  remote {
-       |    //enabled-transports = ["akka.remote.netty.tcp"]
-       |    netty.tcp {
-       |      hostname = "127.0.0.1"
-       |      port = 2433
-       |    }
-       | }
-       |}
-     """.stripMargin
-  }
+  val path = "akka.tcp://actor-test@127.0.0.1:4000/user/receiver"
 
   def main(args: Array[String]) : Unit = {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
-    val ds:DataStreamSource[java.lang.Long] = env.generateSequence(0L,1000L)
-    ds.addSink(new AkkaSink("test",path,conf))
+    val stream =  env.generateSequence(0,1000L).map(x => x.toString)
+    stream.addSink(new AkkaSink[String]("test", path, conf(5000)))
 
     env.execute("AkkaSinkExample")
-
   }
+}
+
+abstract class Conf  {
+
+	def conf(port:Int) = ConfigFactory.parseString {
+		s"""
+		   |akka {
+		   |  actor {
+		   |    provider = "akka.remote.RemoteActorRefProvider"
+		   |  }
+		   |  remote {
+		   |    netty.tcp {
+		   |      hostname = "127.0.0.1"
+		   |      port = $port
+		   |    }
+		   | }
+		   |}
+     """.stripMargin
+	}
 }

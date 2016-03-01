@@ -32,7 +32,7 @@ object AkkaSinkExample extends Conf {
     env.setParallelism(1)
 
     val stream = env.generateSequence(0, 1000L).map(x => x.toString)
-    stream.addSink(new AkkaSink[String]("test", actorReceiverPath, conf(5000)))
+    stream.addSink(new AkkaSink[String]("test", actorReceiverPath, Seq(conf(5000))))
 
     env.execute("AkkaSinkExample")
   }

@@ -35,18 +35,20 @@ import scala.concurrent.duration.FiniteDuration
   * @param config Sequence of Akka System configuration
   * @tparam IN Type of the elements emitted by this sink
   */
-class AkkaSink[IN](systemName: String = "akka-sink", path: String, config: Seq[Config]) extends RichSinkFunction[IN] {
+class AkkaSink[IN](systemName: String = "akka-sink", path: String, config: Seq[Config])
+  extends RichSinkFunction[IN] {
 
   @transient private var actorSystem: ActorSystem = _
 
   @transient private var handler: ActorRef = _
 
   /**
-    * Starts underlying Actor System and ActorHandler to manage connection from Sink to remote Actor
+    * Starts Actor System and ActorHandler to manage connection between Sink and remote Actor
     *
     * @param parameters The configuration containing the parameters attached to the contract.
-    * @throws IllegalArgumentException number of configurations must be equal to function's parallelism
-    *                                  remote Actor not found via path
+    * @throws IllegalArgumentException
+    *                              number of configurations must be equal to function's parallelism
+    *                              remote Actor not found via path
     */
   @throws[IllegalStateException]
   override def open(parameters: Configuration): Unit = {
@@ -57,14 +59,14 @@ class AkkaSink[IN](systemName: String = "akka-sink", path: String, config: Seq[C
     )
 
     val index = getRuntimeContext.getIndexOfThisSubtask
-    val systemName = s"$systemName-$index"
+    val name = s"$systemName-$index"
 
     // hardcoded
     val timeout = new FiniteDuration(10, TimeUnit.SECONDS)
 
-    actorSystem = ActorSystem(systemName, config(index))
+    actorSystem = ActorSystem(name, config(index))
 
-    // check remote actor exists
+    // check if remote actor exists
     val remote = try {
       Await.result(actorSystem.actorSelection(path).resolveOne(timeout), timeout)
     } catch {

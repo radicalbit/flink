@@ -17,23 +17,13 @@
  */
 package org.apache.flink.connectors.akka.streaming
 
-import java.util.concurrent.TimeUnit
-
-import akka.pattern.ask
-import akka.actor._
-import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.junit.Test
-import org.scalatest.time.Seconds
-
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.{FiniteDuration}
 
 class AkkaSinkITCase extends StreamingMultipleProgramsTestBase {
-
 
   def datastream(implicit env: StreamExecutionEnvironment) = env.generateSequence(0, 20L)
   def job(f: StreamExecutionEnvironment => Unit) = {
@@ -65,63 +55,6 @@ class AkkaSinkITCase extends StreamingMultipleProgramsTestBase {
       new AkkaSink[Long](path = "wrongPath", config = Seq(ConfigFactory.parseString("")))
     )
   }
-
-  /*@Test
-  def example(): Unit = job { implicit env =>
-
-    env.setParallelism(1)
-
-    def conf(port: Int) = ConfigFactory.parseString {
-      s"""
-         |akka {
-         |  actor {
-         |    provider = "akka.remote.RemoteActorRefProvider"
-         |  }
-         |  remote {
-         |    netty.tcp {
-         |      hostname = "127.0.0.1"
-         |      port = $port
-         |    }
-         | }
-         |}
-         |""".stripMargin
-    }
-    case object Count
-    class ActorReceiver() extends Actor {
-      @volatile var count = 0
-
-      override def receive: Receive = {
-        case l: String =>
-          count += 1
-
-        case Count =>
-              sender ! count
-      }
-    }
-
-    val remote_system = ActorSystem("remote-system", conf(4000))
-
-    val remoteRef = remote_system.actorOf(Props(new ActorReceiver), "receiver")
-
-    val path = "akka.tcp://remote-system@127.0.0.1:4000/user/receiver"
-
-    datastream.map(_.toString).addSink(
-      new AkkaSink[String](path = path, config = Seq(conf(5000)))
-    )
-
-    env.execute()
-
-
-
-    Thread.sleep(100000L)
-
-    val fCount =(remoteRef.ask(Count)(Timeout(10L, TimeUnit.SECONDS))).mapTo[Int]
-
-    val res = Await.result(fCount, FiniteDuration(10,TimeUnit.SECONDS))
-
-
-    assert(21L == res)
-  }*/
 }
 
 

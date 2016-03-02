@@ -24,8 +24,10 @@ import akka.actor._
 import com.typesafe.config.Config
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Success
 
 /**
   * Sink that emits its input elements to a remote actor
@@ -41,6 +43,8 @@ class AkkaSink[IN](systemName: String = "akka-sink", path: String, config: Seq[C
   @transient private var actorSystem: ActorSystem = _
 
   @transient private var handler: ActorRef = _
+
+  @transient private var asyncException: Throwable = _
 
   /**
     * Starts Actor System and ActorHandler to manage connection between Sink and remote Actor
@@ -77,8 +81,19 @@ class AkkaSink[IN](systemName: String = "akka-sink", path: String, config: Seq[C
 
   }
 
+  @throws[IOException]
   override def invoke(value: IN): Unit = {
-    handler ! value
+    import akka.pattern.ask
+
+    if(asyncException != null) {
+      throw new IOException(asyncException)
+    }
+
+    //hardcoded
+    implicit val timeout = akka.util.Timeout(10, TimeUnit.SECONDS)
+    (handler ? value).mapTo[Either[Throwable,Unit]] onComplete {
+      case Success(Left(t)) => asyncException = t
+    }
   }
 
   /**
@@ -95,16 +110,17 @@ class AkkaSink[IN](systemName: String = "akka-sink", path: String, config: Seq[C
     * @param remote ActorRef's remote actor
     */
   final class ActorHandler(remote: ActorRef) extends Actor {
-
+    private var e: Throwable = null
     context.watch(remote)
 
     override def receive: Receive = {
       case Terminated(actorRef) if remote == actorRef =>
-        throw new IOException(s"Actor ${remote.path} has been terminated")
-        context.stop(self)
+        e = new Throwable(s"Actor ${remote.path} has been terminated")
       case Terminated(actorRef) if self == actorRef =>
         context.unwatch(remote)
-      case element => remote ! element
+      case element =>
+        remote ! element
+        sender ! Either.cond(e == null, Unit, e)
     }
   }
 }

@@ -17,13 +17,18 @@
  */
 package org.apache.flink.connectors.akka.streaming
 
+import java.util.concurrent.TimeUnit
+
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
+
 import org.junit.Test
 
 class AkkaSinkITCase extends StreamingMultipleProgramsTestBase {
+
+  implicit val timeout= akka.util.Timeout(10L, TimeUnit.SECONDS)
 
   def datastream(implicit env: StreamExecutionEnvironment) = env.generateSequence(0, 20L)
   def job(f: StreamExecutionEnvironment => Unit) = {
@@ -38,6 +43,7 @@ class AkkaSinkITCase extends StreamingMultipleProgramsTestBase {
     */
   @Test(expected = classOf[JobExecutionException])
   def checkExceptionConfigSize: Unit = job  { implicit env =>
+
     datastream.addSink(
       new AkkaSink[Long](path = "wrongPath", config = Seq(ConfigFactory.parseString("")))
     )

@@ -18,9 +18,14 @@
 package org.apache.flink.connectors.akka.streaming.examples
 
 
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.ExecutionContext.Implicits.global
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.connectors.akka.streaming.AkkaSink
 import org.apache.flink.streaming.api.scala._
+
+import scala.concurrent.duration.FiniteDuration
 
 object AkkaSinkExample extends Conf {
 
@@ -30,6 +35,9 @@ object AkkaSinkExample extends Conf {
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
+
+    //  AkkaSink implicit timeout
+    implicit val timeout = akka.util.Timeout(10L, TimeUnit.SECONDS)
 
     val stream = env.generateSequence(0, 1000L).map(x => x.toString)
     stream.addSink(new AkkaSink[String]("test", actorReceiverPath, Seq(conf(5000))))

@@ -18,15 +18,13 @@
 package org.apache.flink.connectors.akka.streaming
 
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
-import akka.actor._
+import akka.actor.{Actor, Props, ActorRef, ActorSystem, Terminated}
+import akka.pattern.ask
 import com.typesafe.config.Config
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
-import scala.concurrent.duration.FiniteDuration
 import scala.util.Success
 
 /**
@@ -34,11 +32,13 @@ import scala.util.Success
   *
   * @param systemName Actor System's name, default is "akka-sink"
   * @param path remote actor's path
-  * @param config Sequence of Akka System configuration
+  * @param config Sequence of Akka System's configuration
   * @tparam IN Type of the elements emitted by this sink
   */
-class AkkaSink[IN](systemName: String = "akka-sink", path: String, config: Seq[Config])
-  extends RichSinkFunction[IN] {
+class AkkaSink[IN](systemName: String = "akka-sink",
+                   path: String,
+                   config: Seq[Config]
+                  )(implicit timeout: akka.util.Timeout) extends RichSinkFunction[IN] {
 
   @transient private var actorSystem: ActorSystem = _
 
@@ -59,41 +59,33 @@ class AkkaSink[IN](systemName: String = "akka-sink", path: String, config: Seq[C
 
     require(
       config.size == getRuntimeContext.getNumberOfParallelSubtasks,
-      "config.size must be equal to operator's parallelism"
+      "config.size must be equal to Sink's parallelism"
     )
 
     val index = getRuntimeContext.getIndexOfThisSubtask
     val name = s"$systemName-$index"
 
-    // hardcoded
-    val timeout = new FiniteDuration(10, TimeUnit.SECONDS)
-
     actorSystem = ActorSystem(name, config(index))
 
     // check if remote actor exists
     val remote = try {
-      Await.result(actorSystem.actorSelection(path).resolveOne(timeout), timeout)
+      Await.result(actorSystem.actorSelection(path).resolveOne, timeout.duration)
     } catch {
-      case e: Throwable => throw new IllegalArgumentException(s"Actor not found: $path", e)
+      case e: Throwable => throw new IllegalArgumentException(s"Remote actor not found: $path", e)
     }
 
     handler = actorSystem.actorOf(Props(new ActorHandler(remote)))
-
   }
 
   @throws[IOException]
   override def invoke(value: IN): Unit = {
-    import akka.pattern.ask
 
     if(asyncException != null) {
       throw new IOException(asyncException)
     }
 
-    //hardcoded
-    implicit val timeout = akka.util.Timeout(10, TimeUnit.SECONDS)
-    (handler ? value).mapTo[Either[Throwable,Unit]] onComplete {
-      case Success(Left(t)) => asyncException = t
-    }
+    val response = Await.result((handler ? value).mapTo[Either[Throwable,Unit]], timeout.duration)
+    response.fold(t => asyncException = t, u => Unit)
   }
 
   /**

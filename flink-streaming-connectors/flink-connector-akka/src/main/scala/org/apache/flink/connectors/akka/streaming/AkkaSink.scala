@@ -25,7 +25,6 @@ import com.typesafe.config.Config
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import scala.concurrent.Await
-import scala.util.Success
 
 /**
   * Sink that emits its input elements to a remote actor

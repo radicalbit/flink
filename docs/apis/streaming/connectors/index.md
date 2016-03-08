@@ -35,6 +35,7 @@ Currently these systems are supported:
  * [Hadoop FileSystem](http://hadoop.apache.org) (sink)
  * [RabbitMQ](http://www.rabbitmq.com/) (sink/source)
  * [Twitter Streaming API](https://dev.twitter.com/docs/streaming-apis) (source)
+ * [Apache Cassandra](https://cassandra.apache.org/) (sink)
  * [Akka](http://akka.io)
 
 To run an application using one of these connectors, additional third party

@@ -44,7 +44,7 @@ distribution. See
 for information about how to package the program with the libraries for
 cluster execution.
 
-#### Elasticsearch Sink
+#### Akka Sink
 The connector provides a Sink that can send data to a remote actor.
 
 This code shows how to create a sink:

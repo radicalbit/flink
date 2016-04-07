@@ -142,7 +142,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 	private String dynamicPropertiesEncoded;
 
-	private List<File> shipFiles = new ArrayList<File>();
+	private List<File> shipFiles = new ArrayList<>();
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	private boolean detached;
@@ -189,8 +189,13 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 	}
 
 	@Override
-	public void setFlinkConfigurationObject(org.apache.flink.configuration.Configuration conf) {
+	public void setFlinkConfiguration(org.apache.flink.configuration.Configuration conf) {
 		this.flinkConfiguration = conf;
+	}
+
+	@Override
+	public org.apache.flink.configuration.Configuration getFlinkConfiguration() {
+		return flinkConfiguration;
 	}
 
 	@Override
@@ -224,6 +229,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		flinkConfigurationPath = confPath;
 	}
 
+	@Override
 	public void setConfigurationDirectory(String configurationDirectory) {
 		this.configurationDirectory = configurationDirectory;
 	}
@@ -262,6 +268,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		}
 	}
 
+	@Override
 	public void setDynamicPropertiesEncoded(String dynamicPropertiesEncoded) {
 		this.dynamicPropertiesEncoded = dynamicPropertiesEncoded;
 	}
@@ -318,6 +325,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return detached;
 	}
 
+	@Override
 	public AbstractFlinkYarnCluster deploy() throws Exception {
 
 		UserGroupInformation.setConfiguration(conf);
@@ -592,7 +600,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		fs.close();
 
 		// Setup CLASSPATH for ApplicationMaster
-		Map<String, String> appMasterEnv = new HashMap<String, String>();
+		Map<String, String> appMasterEnv = new HashMap<>();
 		// set user specified app master environment variables
 		appMasterEnv.putAll(Utils.getEnvironmentVariables(ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX, flinkConfiguration));
 		// set classpath from YARN configuration
@@ -742,6 +750,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return new ClusterResourceDescription(totalFreeMemory, containerLimit, nodeManagersFree);
 	}
 
+	@Override
 	public String getClusterDescription() throws Exception {
 
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -777,6 +786,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		return baos.toString();
 	}
 
+	@Override
 	public String getSessionFilesDir() {
 		return sessionFilesDir.toString();
 	}

@@ -142,7 +142,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 
 	private String dynamicPropertiesEncoded;
 
-	private List<File> shipFiles = new ArrayList<File>();
+	private List<File> shipFiles = new ArrayList<>();
 	private org.apache.flink.configuration.Configuration flinkConfiguration;
 
 	private boolean detached;
@@ -600,7 +600,7 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		fs.close();
 
 		// Setup CLASSPATH for ApplicationMaster
-		Map<String, String> appMasterEnv = new HashMap<String, String>();
+		Map<String, String> appMasterEnv = new HashMap<>();
 		// set user specified app master environment variables
 		appMasterEnv.putAll(Utils.getEnvironmentVariables(ConfigConstants.YARN_APPLICATION_MASTER_ENV_PREFIX, flinkConfiguration));
 		// set classpath from YARN configuration

@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.0-SNAPSHOT</version>
+	<version>1.0.1-rbp-001</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -48,6 +48,19 @@ under the License.
 		<connection>git@github.com:apache/flink.git</connection>
 		<developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/flink.git</developerConnection>
 	</scm>
+
+	<distributionManagement>
+		<repository>
+			<id>io.radicalbit.public-repo-releases</id>
+			<name>Radicalbit Releases Repository</name>
+			<url>https://public-repo.radicalbit.io/maven/repository/internal/</url>
+		</repository>
+		<snapshotRepository>
+			<id>io.radicalbit.public-repo-snapshots</id>
+			<name>Radicalbit Snapshots Repository</name>
+			<url>https://public-repo.radicalbit.io/maven/repository/snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
 
 	<modules>
 		<!--- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->

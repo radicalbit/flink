@@ -73,7 +73,7 @@ under the License.
 
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-remote_2.10</artifactId>
+            <artifactId>akka-remote_2.11</artifactId>
             <version>${akka.version}</version>
         </dependency>
 
@@ -210,6 +210,14 @@ under the License.
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>com.github.siom79.japicmp</groupId>
+                <artifactId>japicmp-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
             </plugin>
 
             <plugin>

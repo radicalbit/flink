@@ -24,7 +24,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-shaded-curator</artifactId>
-		<version>1.0.1-rbp-001</version>
+		<version>1.0.1-rbp-002-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 

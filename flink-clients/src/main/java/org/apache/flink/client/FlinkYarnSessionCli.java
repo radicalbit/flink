@@ -24,8 +24,10 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.PosixParser;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus;
@@ -187,6 +189,14 @@ public class FlinkYarnSessionCli {
 				} // else
 				flinkYarnClient.setFlinkLoggingConfigurationPath(new Path(log4j.toURI()));
 			}
+		}
+
+		// ship Kerberos-related files if specified in the configuration
+		if (SecurityUtils.isSecurityEnabled()) {
+			final String krb5ConfPath = flinkConfiguration.getString(ConfigConstants.KRB5_CONF_PATH, "/etc/krb5.conf");
+			final String krb5JaasPath = flinkConfiguration.getString(ConfigConstants.KRB5_JAAS_PATH, "MISSING PATH");
+			shipFiles.add(new File(krb5ConfPath));
+			shipFiles.add(new File(krb5JaasPath));
 		}
 
 		flinkYarnClient.setShipFiles(shipFiles);

@@ -554,6 +554,12 @@ public final class ConfigConstants {
 
 	public static final String ZOOKEEPER_MAX_RETRY_ATTEMPTS = "recovery.zookeeper.client.max-retry-attempts";
 
+	// ----------------------------- Miscellaneous ----------------------------
+
+	public static final String KRB5_CONF_PATH = "krb5.conf.path";
+
+	public static final String KRB5_JAAS_PATH = "krb5.jaas.path";
+
 	// ------------------------------------------------------------------------
 	//                            Default Values
 	// ------------------------------------------------------------------------

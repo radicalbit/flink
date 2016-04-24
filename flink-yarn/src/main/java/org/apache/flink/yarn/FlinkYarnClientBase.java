@@ -23,6 +23,7 @@ import org.apache.flink.client.FlinkYarnSessionCli;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.jobmanager.RecoveryMode;
+import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnClient;
 import org.apache.flink.runtime.yarn.AbstractFlinkYarnCluster;
 
@@ -60,6 +61,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Paths;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -517,6 +519,20 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			}
 		}
 
+		if (SecurityUtils.isSecurityEnabled()) {
+			final String workingDirectory = ".";
+			final java.nio.file.Path krb5ConfFileName =
+					Paths.get(flinkConfiguration.getString(
+							ConfigConstants.KRB5_CONF_PATH, "/etc/krb5.conf")).getFileName();
+			final java.nio.file.Path krb5JaasFileName =
+					Paths.get(flinkConfiguration.getString(
+							ConfigConstants.KRB5_JAAS_PATH, "MISSING PATH")).getFileName();
+			amCommand += " -Djava.security.krb5.conf=" +
+					(workingDirectory + File.separator + krb5ConfFileName);
+			amCommand += " -Djava.security.auth.login.config=" +
+					(workingDirectory + File.separator + krb5JaasFileName);
+		}
+
 		amCommand += " " + getApplicationMasterClass().getName() + " "
 			+ " 1>"
 			+ ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/jobmanager.out"
@@ -534,8 +550,8 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 		if (!fs.getClass().getSimpleName().equals("GoogleHadoopFileSystem") &&
 			fs.getScheme().startsWith("file")) {
 			LOG.warn("The file system scheme is '" + fs.getScheme() + "'. This indicates that the "
-				+ "specified Hadoop configuration path is wrong and the system is using the default Hadoop configuration values."
-				+ "The Flink YARN client needs to store its files in a distributed file system");
+				+ "specified Hadoop configuration path is wrong and the system is using the default Hadoop "
+				+ "configuration values. The Flink YARN client needs to store its files in a distributed file system");
 		}
 
 		// Set-up ApplicationSubmissionContext for the application

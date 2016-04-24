@@ -21,30 +21,29 @@ package org.apache.flink.yarn
 import java.io.File
 import java.lang.reflect.Method
 import java.nio.ByteBuffer
+import java.nio.file.Paths
 import java.util.Collections
 import java.util.concurrent.ExecutorService
 import java.util.{List => JavaList}
 
 import akka.actor.ActorRef
-
 import grizzled.slf4j.Logger
-
 import org.apache.flink.api.common.JobID
-import org.apache.flink.configuration.{Configuration => FlinkConfiguration, ConfigConstants}
+import org.apache.flink.configuration.{ConfigConstants, Configuration => FlinkConfiguration}
 import org.apache.flink.runtime.akka.AkkaUtils
-import org.apache.flink.runtime.checkpoint.{SavepointStore, CheckpointRecoveryFactory}
+import org.apache.flink.runtime.checkpoint.{CheckpointRecoveryFactory, SavepointStore}
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy
 import org.apache.flink.runtime.jobgraph.JobStatus
-import org.apache.flink.runtime.jobmanager.{SubmittedJobGraphStore, JobManager}
+import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.messages.JobManagerMessages.{RequestJobStatus, CurrentJobStatus, JobNotFound}
+import org.apache.flink.runtime.messages.JobManagerMessages.{CurrentJobStatus, JobNotFound, RequestJobStatus}
 import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.yarn.FlinkYarnClusterStatus
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager
 import org.apache.flink.runtime.instance.InstanceManager
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
+import org.apache.flink.runtime.security.SecurityUtils
 import org.apache.flink.yarn.YarnMessages._
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.DataOutputBuffer
@@ -462,6 +461,8 @@ class YarnJobManager(
       val hasLogback = new File(s"$currDir/logback.xml").exists()
       val hasLog4j = new File(s"$currDir/log4j.properties").exists()
 
+      val krb5Enabled = flinkConfiguration.getBoolean(ConfigConstants.KRB5_ENABLE, false)
+
       // prepare files to be shipped
       val resources = shipListString.split(",") flatMap {
         pathStr =>
@@ -485,6 +486,7 @@ class YarnJobManager(
           memoryLimit,
           hasLogback,
           hasLog4j,
+          flinkConfiguration,
           yarnClientUsername,
           conf,
           taskManagerLocalResources)
@@ -533,6 +535,7 @@ class YarnJobManager(
       memoryLimit: Int,
       hasLogback: Boolean,
       hasLog4j: Boolean,
+      flinkConfig: FlinkConfiguration,
       yarnClientUsername: String,
       yarnConf: Configuration,
       taskManagerLocalResources: Map[String, LocalResource]): ContainerLaunchContext = {
@@ -556,6 +559,20 @@ class YarnJobManager(
 
     if (hasLog4j) {
       tmCommand ++= s" -Dlog4j.configuration=file:log4j.properties"
+    }
+
+    if (SecurityUtils.isSecurityEnabled) {
+      val workingDirectory = ".";
+      val krb5ConfFileName =
+        Paths.get(flinkConfig.getString(ConfigConstants.KRB5_CONF_PATH,
+          "/etc/krb5.conf")).getFileName
+      val krb5JaasFileName =
+        Paths.get(flinkConfig.getString(ConfigConstants.KRB5_JAAS_PATH,
+          "MISSING PATH")).getFileName
+      tmCommand.append(" -Djava.security.krb5.conf=")
+        .append(workingDirectory + File.separator + krb5ConfFileName);
+      tmCommand.append(" -Djava.security.auth.login.config=")
+        .append(workingDirectory + File.separator + krb5JaasFileName);
     }
 
     tmCommand ++= s" ${taskManagerRunnerClass.getName} --configDir . 1> " +

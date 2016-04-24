@@ -60,6 +60,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Paths;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -515,6 +516,20 @@ public abstract class FlinkYarnClientBase extends AbstractFlinkYarnClient {
 			if(hasLog4j) {
 				amCommand += " -Dlog4j.configuration=file:" + FlinkYarnSessionCli.CONFIG_FILE_LOG4J_NAME;
 			}
+		}
+
+		if (flinkConfiguration.getBoolean(ConfigConstants.KRB5_ENABLE, false)) {
+			final String workingDirectory = ".";
+			final java.nio.file.Path krb5ConfFileName =
+					Paths.get(flinkConfiguration.getString(
+							ConfigConstants.KRB5_CONF_PATH, "MISSING PATH")).getFileName();
+			final java.nio.file.Path krb5JaasFileName =
+					Paths.get(flinkConfiguration.getString(
+							ConfigConstants.KRB5_JAAS_PATH, "MISSING PATH")).getFileName();
+			amCommand += " -Djava.security.krb5.conf=" +
+					(workingDirectory + File.separator + krb5ConfFileName);
+			amCommand += " -Djava.security.auth.login.config=" +
+					(workingDirectory + File.separator + krb5JaasFileName);
 		}
 
 		amCommand += " " + getApplicationMasterClass().getName() + " "

@@ -21,6 +21,7 @@ package org.apache.flink.yarn
 import java.io.File
 import java.lang.reflect.Method
 import java.nio.ByteBuffer
+import java.nio.file.Paths
 import java.util.Collections
 import java.util.concurrent.ExecutorService
 import java.util.{List => JavaList}
@@ -462,6 +463,8 @@ class YarnJobManager(
       val hasLogback = new File(s"$currDir/logback.xml").exists()
       val hasLog4j = new File(s"$currDir/log4j.properties").exists()
 
+      val krb5Enabled = flinkConfiguration.getBoolean(ConfigConstants.KRB5_ENABLE, false)
+
       // prepare files to be shipped
       val resources = shipListString.split(",") flatMap {
         pathStr =>
@@ -485,6 +488,8 @@ class YarnJobManager(
           memoryLimit,
           hasLogback,
           hasLog4j,
+          krb5Enabled,
+          flinkConfiguration,
           yarnClientUsername,
           conf,
           taskManagerLocalResources)
@@ -533,6 +538,8 @@ class YarnJobManager(
       memoryLimit: Int,
       hasLogback: Boolean,
       hasLog4j: Boolean,
+      krb5Enabled: Boolean,
+      flinkConfig: FlinkConfiguration,
       yarnClientUsername: String,
       yarnConf: Configuration,
       taskManagerLocalResources: Map[String, LocalResource]): ContainerLaunchContext = {
@@ -556,6 +563,18 @@ class YarnJobManager(
 
     if (hasLog4j) {
       tmCommand ++= s" -Dlog4j.configuration=file:log4j.properties"
+    }
+
+    if (krb5Enabled) {
+      val workingDirectory = ".";
+      val krb5ConfFileName =
+        Paths.get(flinkConfig.getString(ConfigConstants.KRB5_CONF_PATH, "MISSING PATH")).getFileName
+      val krb5JaasFileName =
+        Paths.get(flinkConfig.getString(ConfigConstants.KRB5_JAAS_PATH, "MISSING PATH")).getFileName
+      tmCommand.append(" -Djava.security.krb5.conf=")
+        .append(workingDirectory + File.separator + krb5ConfFileName);
+      tmCommand.append(" -Djava.security.auth.login.config=")
+        .append(workingDirectory + File.separator + krb5JaasFileName);
     }
 
     tmCommand ++= s" ${taskManagerRunnerClass.getName} --configDir . 1> " +

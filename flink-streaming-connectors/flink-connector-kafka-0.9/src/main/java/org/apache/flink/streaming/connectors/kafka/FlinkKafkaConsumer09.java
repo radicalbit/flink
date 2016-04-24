@@ -17,7 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -181,6 +183,10 @@ public class FlinkKafkaConsumer09<T> extends FlinkKafkaConsumerBase<T> {
 		requireNonNull(topics, "topics");
 		this.properties = requireNonNull(props, "props");
 		setDeserializer(this.properties);
+		if (props.getProperty("security.protocol") != null) {
+			System.setProperty("java.security.auth.login.config",
+					GlobalConfiguration.getString(ConfigConstants.KRB5_JAAS_PATH, null));
+		}
 		KafkaConsumer<byte[], byte[]> consumer = null;
 		try {
 			consumer = new KafkaConsumer<>(this.properties);

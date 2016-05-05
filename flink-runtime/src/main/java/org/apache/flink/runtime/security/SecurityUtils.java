@@ -22,6 +22,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.security.auth.login.LoginException;
 import java.security.PrivilegedExceptionAction;
 
 /**
@@ -36,8 +37,7 @@ public final class SecurityUtils {
 
 	// load Hadoop configuration when loading the security utils.
 	private static Configuration hdConf = new Configuration();
-	
-	
+
 	public static boolean isSecurityEnabled() {
 		UserGroupInformation.setConfiguration(hdConf);
 		return UserGroupInformation.isSecurityEnabled();
@@ -47,8 +47,9 @@ public final class SecurityUtils {
 		UserGroupInformation.setConfiguration(hdConf);
 		UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
 		if (!ugi.hasKerberosCredentials()) {
-			LOG.error("Security is enabled but no Kerberos credentials have been found. " +
-						"You may authenticate using the kinit command.");
+			throw new LoginException(
+					"Security is enabled but no Kerberos credentials have been found. " +
+					"You may authenticate using the kinit command.");
 		}
 		return ugi.doAs(new PrivilegedExceptionAction<T>() {
 			@Override

@@ -18,15 +18,17 @@
 package org.apache.flink.connectors.akka.streaming.examples
 
 import akka.actor._
+import org.apache.flink.connectors.akka.streaming.AkkaSink
+
 import scala.tools.nsc.io.File
 
-object AkkaReceiverExample extends Conf {
+object AkkaReceiverExample {
 
   def main(args: Array[String]): Unit = {
 
     val filename = args(0)
-    val actorSystem = ActorSystem.create("actor-test", conf(4000))
-    val actor = actorSystem.actorOf(Props(new ActorReceiver(filename)), "receiver")
+    val actorSystem = ActorSystem.create("actor-test", AkkaSink.conf(4000))
+    actorSystem.actorOf(Props(new ActorReceiver(filename)), "receiver")
   }
 
   class ActorReceiver(filename: String) extends Actor with ActorLogging {

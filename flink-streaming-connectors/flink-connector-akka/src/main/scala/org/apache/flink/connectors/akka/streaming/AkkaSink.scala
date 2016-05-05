@@ -31,15 +31,11 @@ import scala.concurrent.Await
 /**
   * Sink that emits its input elements to a remote actor
   *
-  * @param systemName Actor System's name, default is "akka-sink"
   * @param path remote actor's path
-  * @param config Sequence of Akka System's configuration
   * @tparam IN Type of the elements emitted by this sink
   */
-class AkkaSink[IN](systemName: String = "akka-sink",
-                   path: String,
-                   config: Seq[Config]
-                  )(implicit timeout: akka.util.Timeout) extends RichSinkFunction[IN] {
+class AkkaSink[IN](path: String)(implicit timeout: akka.util.Timeout)
+  extends RichSinkFunction[IN] {
 
   @transient private var actorSystem: ActorSystem = _
 

@@ -28,25 +28,19 @@ import org.junit.Test
 
 class AkkaSinkITCase extends StreamingMultipleProgramsTestBase {
 
-  implicit val timeout= akka.util.Timeout(10L, TimeUnit.SECONDS)
+  implicit val timeout = akka.util.Timeout(10L, TimeUnit.SECONDS)
 
-  def datastream(implicit env: StreamExecutionEnvironment) = env.generateSequence(0, 20L)
-  def job(f: StreamExecutionEnvironment => Unit) = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    f(env)
-    env.execute()
-  }
 
   /**
-    * JobExecutionException wraps the requirement
-    *       "config.size must be equal to operator's parallelism"
+    * JobExecutionException wraps IllegalArgumentException in case of missing remote actor
     */
   @Test(expected = classOf[JobExecutionException])
-  def checkExceptionConfigSize: Unit = job  { implicit env =>
+  def checkExceptionConfigSize(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
 
-    datastream.addSink(
-      new AkkaSink[Long](path = "wrongPath", config = Seq(ConfigFactory.parseString("")))
-    )
+    env.generateSequence(0, 20L).addSink(new AkkaSink[Long](path = "wrongPath"))
+
+    env.execute()
   }
 }
 

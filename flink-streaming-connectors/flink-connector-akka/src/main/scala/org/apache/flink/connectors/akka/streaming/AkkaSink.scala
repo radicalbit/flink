@@ -19,11 +19,13 @@ package org.apache.flink.connectors.akka.streaming
 
 import java.io.IOException
 
-import akka.actor.{Actor, Props, ActorRef, ActorSystem, Terminated}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import org.apache.flink.util.NetUtils
+
 import scala.concurrent.Await
 
 /**
@@ -56,15 +58,8 @@ class AkkaSink[IN](systemName: String = "akka-sink",
   @throws[IllegalStateException]
   override def open(parameters: Configuration): Unit = {
 
-    require(
-      config.size == getRuntimeContext.getNumberOfParallelSubtasks,
-      "config.size must be equal to Sink's parallelism"
-    )
-
-    val index = getRuntimeContext.getIndexOfThisSubtask
-    val name = s"$systemName-$index"
-
-    actorSystem = ActorSystem(name, config(index))
+    val name = getRuntimeContext.getTaskNameWithSubtasks.replace("[^a-zA-Z0-9_-]", "")
+    actorSystem = ActorSystem(name, AkkaSink.conf(NetUtils.getAvailablePort))
 
     // check if remote actor exists
     val remote = try {
@@ -84,7 +79,7 @@ class AkkaSink[IN](systemName: String = "akka-sink",
     }
 
     val response = Await.result((handler ? value).mapTo[Either[Throwable,Unit]], timeout.duration)
-    response.fold(t => asyncException = t, u => Unit)
+    response.fold(t => asyncException = t, u => ())
   }
 
   /**
@@ -111,7 +106,33 @@ class AkkaSink[IN](systemName: String = "akka-sink",
         context.unwatch(remote)
       case element =>
         remote ! element
-        sender ! Either.cond(e == null, Unit, e)
+        sender ! Either.cond(e == null, (), e)
     }
+  }
+}
+
+object AkkaSink {
+
+  /**
+    * Creates the Actor System's configuration
+    *
+    * @param port free port
+    * @return ActorSystem's configuration
+    */
+  def conf(port: Int) = ConfigFactory.parseString {
+    s"""
+       |akka {
+       |  actor {
+       |    provider = "akka.remote.RemoteActorRefProvider"
+       |  }
+       |  enabled-transports = ["akka.remote.netty.tcp"]
+       |  remote {
+       |    netty.tcp {
+       |      hostname = "127.0.0.1"
+       |      port = $port
+       |    }
+       | }
+       |}
+       |""".stripMargin
   }
 }

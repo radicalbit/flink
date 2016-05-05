@@ -48,19 +48,6 @@ class AkkaSinkITCase extends StreamingMultipleProgramsTestBase {
       new AkkaSink[Long](path = "wrongPath", config = Seq(ConfigFactory.parseString("")))
     )
   }
-
-  /**
-    * JobExecutionException wraps
-    *       "throw new IllegalArgumentException(s"Actor not found: $path", e)"
-    */
-  @Test(expected = classOf[JobExecutionException])
-  def checkExceptionRemoteActorNotFound: Unit = job { implicit env =>
-    env.setParallelism(1)
-
-    datastream.addSink(
-      new AkkaSink[Long](path = "wrongPath", config = Seq(ConfigFactory.parseString("")))
-    )
-  }
 }
 
 

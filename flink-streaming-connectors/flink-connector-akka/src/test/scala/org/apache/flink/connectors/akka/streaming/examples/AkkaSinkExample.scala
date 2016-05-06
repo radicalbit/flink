@@ -17,7 +17,6 @@
  */
 package org.apache.flink.connectors.akka.streaming.examples
 
-
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.ExecutionContext.Implicits.global

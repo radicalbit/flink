@@ -20,12 +20,13 @@ package org.apache.flink.connectors.akka.streaming
 import java.io.IOException
 
 import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.util.NetUtils
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 
@@ -53,8 +54,8 @@ class AkkaSink[IN](path: String)(implicit timeout: akka.util.Timeout)
   @throws[IllegalStateException]
   override def open(parameters: Configuration): Unit = {
 
-    actorSystem = AkkaSink.getActorSystem
-    val guardian = AkkaSink.getGuardian
+    actorSystem = AkkaSink.actorSystem
+    val guardian = AkkaSink.actorGuardian
 
     // check if remote actor exists
     val remote = try {
@@ -92,78 +93,25 @@ class AkkaSink[IN](path: String)(implicit timeout: akka.util.Timeout)
   */
 object AkkaSink {
 
-  private var _actorSystem: ActorSystem = _
-  private var _actorGuardian: ActorRef = _
-
 	/**
-    * Return single instance of actorSystem
-    *
-    * @return actorSystem
+    *  TaskManager's ActorSystem of the AkkaSink
+    *  It must be one per TaskManager
     */
-  private def getActorSystem: ActorSystem = {
+  lazy val actorSystem: ActorSystem = ActorSystem("akka-sink", AkkaSink.conf(NetUtils.getAvailablePort))
 
-   this.synchronized {
-      if( _actorSystem == null) {
-        _actorSystem = ActorSystem("akka-sink", AkkaSink.conf(NetUtils.getAvailablePort))
-      }
-    }
-    _actorSystem
-  }
-
+  lazy val actorGuardian: ActorRef = actorSystem.actorOf(Props(new ActorGuardian()))
 
   protected case class Handle(remote: ActorRef)
   protected case object Children
-	/**
-    *  TODO
-    *
-    * @return
-    */
-  private def getGuardian: ActorRef = {
 
-    this.synchronized {
-      if (_actorGuardian == null) {
-        _actorGuardian = getActorSystem.actorOf(Props(new Actor {
-          override def receive: Receive = {
-            case Handle(remote) =>
-              val ref: ActorRef = context.actorOf(Props(new ActorHandler(remote)))
-              sender() ! ref
-            case Children =>
-              sender() ! context.children.size
-          }
-        }))
-      }
-    }
-
-    _actorGuardian
-  }
   /**
-    * Sends values to remote actor and watch it in case of unexpected termination
-    *
-    * @param remote ActorRef's remote actor
-    */
-  final class ActorHandler(remote: ActorRef) extends Actor {
-    private var e: Throwable = null
-    context.watch(remote)
-
-    override def receive: Receive = {
-      case Terminated(actorRef) if remote == actorRef =>
-        e = new Throwable(s"Actor ${remote.path} has been terminated")
-      case Terminated(actorRef) if self == actorRef =>
-        context.unwatch(remote)
-      case element =>
-        remote ! element
-        sender ! Either.cond(e == null, (), e)
-    }
-  }
-
-	/**
     *   TODO
     */
   def tryStopActorSystem()(implicit timeout: akka.util.Timeout): Unit = {
-    val size: Int = Await.result((_actorGuardian ? Children).mapTo[Int], timeout.duration)
+    val size: Int = Await.result((actorGuardian ? Children).mapTo[Int], timeout.duration)
 
     if (size == 0) {
-      _actorSystem.shutdown()
+      actorSystem.shutdown()
     }
   }
   /**
@@ -187,5 +135,43 @@ object AkkaSink {
        | }
        |}
        |""".stripMargin
+  }
+
+  //
+  //    INTERNAL ACTORS
+  //
+
+  /**
+    *  Actor Guardian is responsible to manage lifecycle of the TaskManager's ActorHandlers
+    *  It must be one per TaskManager
+    */
+  private final class ActorGuardian extends Actor {
+    override def receive: Receive = {
+      case Handle(remote) =>
+        val ref: ActorRef = context.actorOf(Props(new ActorHandler(remote)))
+        sender() ! ref
+      case Children =>
+        sender() ! context.children.size
+    }
+  }
+
+  /**
+    * Sends values to remote actor and watch it in case of unexpected termination
+    *
+    * @param remote ActorRef's remote actor
+    */
+  final class ActorHandler(remote: ActorRef) extends Actor {
+    private var e: Throwable = null
+    context.watch(remote)
+
+    override def receive: Receive = {
+      case Terminated(actorRef) if remote == actorRef =>
+        e = new Throwable(s"Actor ${remote.path} has been terminated")
+      case Terminated(actorRef) if self == actorRef =>
+        context.unwatch(remote)
+      case element =>
+        remote ! element
+        sender ! Either.cond(e == null, (), e)
+    }
   }
 }

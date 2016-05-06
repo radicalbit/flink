@@ -103,6 +103,20 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
 		super.restoreState(state, recoveryTimestamp);
 		this.state = (ExactlyOnceState) state.getFunctionState();
+
+		synchronized (this.state.pendingHandles) { //remove all handles that were already committed
+			Set<Long> pastCheckpointIds = this.state.pendingHandles.keySet();
+			Set<Long> checkpointsToRemove = new HashSet<>();
+			for (Long pastCheckpointId : pastCheckpointIds) {
+				if (committer.isCheckpointCommitted(pastCheckpointId)) {
+					checkpointsToRemove.add(pastCheckpointId);
+				}
+			}
+			for (Long toRemove : checkpointsToRemove) {
+				this.state.pendingHandles.remove(toRemove);
+			}
+		}
+		
 		out = null;
 	}
 

@@ -1,9 +1,9 @@
 package org.apache.flink.ml.math.distributed
 
 import org.apache.flink.api.scala.utils.DataSetUtils
-import org.apache.flink.api.scala.DataSet
+import org.apache.flink.api.scala._
 import org.apache.flink.ml.math.distributed.DistributedRowMatrix.MatrixRowIndex
-import org.apache.flink.ml.math.{DenseMatrix, SparseMatrix, SparseVector, Vector}
+import org.apache.flink.ml.math._
 
 
 class DistributedRowMatrix(data: DataSet[IndexedRow], numRowsOpt: Option[Int] = None, numColsOpt: Option[Int] = None) extends DistributedMatrix {
@@ -27,16 +27,20 @@ class DistributedRowMatrix(data: DataSet[IndexedRow], numRowsOpt: Option[Int] = 
       case None => 0
     }
 
-  def toLocalSparseMatrix: SparseMatrix = {
+  def toCoo:Seq[(Int,Int,Double)]={
     val localRows = data.collect()
-    val localEntries = for(
-      row<-localRows;
-      IndexedRow(rowIndex,vector)<-row;
+    for(
+      IndexedRow(rowIndex,vector)<-localRows;
+
       (columnIndex,value)<-vector
     ) yield (rowIndex,columnIndex,value)
 
+  }
 
-    val localMatrix = SparseMatrix.fromCOO(this.numRows, this.numCols, localEntries)
+  def toLocalSparseMatrix: SparseMatrix = {
+
+
+    val localMatrix = SparseMatrix.fromCOO(this.numRows, this.numCols, this.toCoo)
     require(localMatrix.numRows == this.numRows)
     require(localMatrix.numCols == this.numCols)
     localMatrix
@@ -49,7 +53,8 @@ object DistributedRowMatrix {
 
   type MatrixRowIndex = Int
 
-  def apply(data: DataSet[(Int, Int, Double)], numRows: Int, numCols: Int): DistributedRowMatrix = {
+  def apply(data: DataSet[(Int, Int, Double)], numRows: Int, numCols: Int): DistributedRowMatrix
+  = {
     val vectorData: DataSet[SparseVector] = data
       .groupBy(0)
       .reduceGroup(sparseRow => {
@@ -59,6 +64,7 @@ object DistributedRowMatrix {
       )
 
     val zippedData=DataSetUtils(vectorData).zipWithIndex.map(x=>IndexedRow(x._1.toInt,x._2))
+
     new DistributedRowMatrix(zippedData, Some(numRows), Some(numCols))
   }
 }

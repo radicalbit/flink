@@ -19,6 +19,7 @@ package org.apache.flink.connectors.akka.streaming
 
 import java.io.IOException
 
+import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
 import com.typesafe.config.{Config, ConfigFactory}
@@ -47,15 +48,13 @@ class AkkaSink[IN](path: String)(implicit timeout: akka.util.Timeout)
     * Starts Actor System and ActorHandler to manage connection between Sink and remote Actor
     *
     * @param parameters The configuration containing the parameters attached to the contract.
-    * @throws IllegalArgumentException
-    *                              number of configurations must be equal to function's parallelism
-    *                              remote Actor not found via path
+    * @throws IllegalArgumentException remote Actor not found via path
     */
   @throws[IllegalStateException]
   override def open(parameters: Configuration): Unit = {
 
-    val name = getRuntimeContext.getTaskNameWithSubtasks.replace("[^a-zA-Z0-9_-]", "")
-    actorSystem = ActorSystem(name, AkkaSink.conf(NetUtils.getAvailablePort))
+    actorSystem = AkkaSink.getActorSystem
+    val guardian = AkkaSink.getGuardian
 
     // check if remote actor exists
     val remote = try {
@@ -64,7 +63,7 @@ class AkkaSink[IN](path: String)(implicit timeout: akka.util.Timeout)
       case e: Throwable => throw new IllegalArgumentException(s"Remote actor not found: $path", e)
     }
 
-    handler = actorSystem.actorOf(Props(new ActorHandler(remote)))
+    handler = Await.result((guardian ? AkkaSink.Handle(remote)).mapTo[ActorRef], timeout.duration)
   }
 
   @throws[IOException]
@@ -83,9 +82,60 @@ class AkkaSink[IN](path: String)(implicit timeout: akka.util.Timeout)
     */
   override def close(): Unit = {
     actorSystem.stop(handler)
-    actorSystem.shutdown()
+    AkkaSink.tryStopActorSystem()
   }
 
+}
+
+/**
+  *  Companion Object
+  */
+object AkkaSink {
+
+  private var _actorSystem: ActorSystem = _
+  private var _actorGuardian: ActorRef = _
+
+	/**
+    * Return single instance of actorSystem
+    *
+    * @return actorSystem
+    */
+  private def getActorSystem: ActorSystem = {
+
+   this.synchronized {
+      if( _actorSystem == null) {
+        _actorSystem = ActorSystem("akka-sink", AkkaSink.conf(NetUtils.getAvailablePort))
+      }
+    }
+    _actorSystem
+  }
+
+
+  protected case class Handle(remote: ActorRef)
+  protected case object Children
+	/**
+    *  TODO
+    *
+    * @return
+    */
+  private def getGuardian: ActorRef = {
+
+    this.synchronized {
+      if (_actorGuardian == null) {
+        _actorGuardian = getActorSystem.actorOf(Props(new Actor {
+          override def receive: Receive = {
+            case Handle(remote) =>
+              val ref: ActorRef = context.actorOf(Props(new ActorHandler(remote)))
+              sender() ! ref
+            case Children =>
+              sender() ! context.children.size
+          }
+        }))
+      }
+    }
+
+    _actorGuardian
+  }
   /**
     * Sends values to remote actor and watch it in case of unexpected termination
     *
@@ -105,10 +155,17 @@ class AkkaSink[IN](path: String)(implicit timeout: akka.util.Timeout)
         sender ! Either.cond(e == null, (), e)
     }
   }
-}
 
-object AkkaSink {
+	/**
+    *   TODO
+    */
+  def tryStopActorSystem()(implicit timeout: akka.util.Timeout): Unit = {
+    val size: Int = Await.result((_actorGuardian ? Children).mapTo[Int], timeout.duration)
 
+    if (size == 0) {
+      _actorSystem.shutdown()
+    }
+  }
   /**
     * Creates the Actor System's configuration
     *

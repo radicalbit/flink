@@ -190,4 +190,8 @@ object DenseMatrix {
   def eye(numRows: Int, numCols: Int): DenseMatrix = {
     new DenseMatrix(numRows, numCols, Array.fill(numRows * numCols)(1.0))
   }
+
+  def apply(numRows:Int, numCols:Int, values: Array[Vector]):DenseMatrix ={
+    new DenseMatrix(numRows, numCols, values.flatMap(_.valueIterator.toList))
+  }
 }

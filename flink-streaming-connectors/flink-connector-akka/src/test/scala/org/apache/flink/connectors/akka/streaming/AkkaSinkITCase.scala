@@ -20,6 +20,7 @@ package org.apache.flink.connectors.akka.streaming
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
+import com.typesafe.config.ConfigFactory
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.util.StreamingMultipleProgramsTestBase
 import org.apache.flink.util.NetUtils
@@ -38,17 +39,31 @@ class AkkaSinkITCase extends StreamingMultipleProgramsTestBase {
 	@Before
 	def startReceiver(): Unit = {
 
-		file = java.io.File.createTempFile("outputformat",".txt")
-    val port = NetUtils.getAvailablePort
-		actorSystem = ActorSystem.create("actor-test", AkkaSink.conf(port))
+		file = java.io.File.createTempFile("outputformat", ".txt")
+		val port = NetUtils.getAvailablePort
+		actorSystem = ActorSystem.create("actor-test", ConfigFactory.parseString {
+			s"""
+				 |akka {
+				 |  actor {
+				 |    provider = "akka.remote.RemoteActorRefProvider"
+				 |  }
+				 |  enabled-transports = ["akka.remote.netty.tcp"]
+				 |  remote {
+				 |    netty.tcp {
+				 |      hostname = "127.0.0.1"
+				 |      port = $port
+				 |    }
+				 | }
+				 |}
+				 |""".stripMargin
+		})
 		actorSystem.actorOf(Props(new ActorReceiver(file.getAbsolutePath)), "receiver")
 
 		actorRemoteAddress = s"akka.tcp://actor-test@127.0.0.1:$port/user/receiver"
 
-		class ActorReceiver(filename: String) extends Actor with ActorLogging {
+		class ActorReceiver(filename: String) extends Actor {
 			override def receive = {
-				case l : String =>
-					log.debug(s"### element $l")
+				case l: String =>
 					File(filename).appendAll(s"$l \n")
 			}
 		}

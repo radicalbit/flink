@@ -97,30 +97,29 @@ object AkkaSink {
     *  TaskManager's ActorSystem of the AkkaSink
     *  It must be one per TaskManager
     */
-  lazy val actorSystem: ActorSystem = ActorSystem("akka-sink", AkkaSink.conf(NetUtils.getAvailablePort))
+  private lazy val actorSystem: ActorSystem = ActorSystem("akka-sink", AkkaSink.conf)
 
-  lazy val actorGuardian: ActorRef = actorSystem.actorOf(Props(new ActorGuardian()))
+  private lazy val actorGuardian: ActorRef = actorSystem.actorOf(Props(new ActorGuardian()))
 
   protected case class Handle(remote: ActorRef)
-  protected case object Children
+  protected case object HandlerAlive
 
   /**
-    *   TODO
+    *   If ActorGuardian doesn't have more children alive, actorSystem is gonna shutdown
     */
-  def tryStopActorSystem()(implicit timeout: akka.util.Timeout): Unit = {
-    val size: Int = Await.result((actorGuardian ? Children).mapTo[Int], timeout.duration)
+  private def tryStopActorSystem()(implicit timeout: akka.util.Timeout): Unit = {
 
-    if (size == 0) {
+    // remaining ActorHandler
+    val actorHandlerAlive: Int = Await.result((actorGuardian ? HandlerAlive).mapTo[Int], timeout.duration)
+    if (actorHandlerAlive == 0) {
       actorSystem.shutdown()
     }
   }
   /**
-    * Creates the Actor System's configuration
+    * Actor System's configuration
     *
-    * @param port free port
-    * @return ActorSystem's configuration
     */
-  def conf(port: Int) = ConfigFactory.parseString {
+  val conf = ConfigFactory.parseString {
     s"""
        |akka {
        |  actor {
@@ -130,7 +129,7 @@ object AkkaSink {
        |  remote {
        |    netty.tcp {
        |      hostname = "127.0.0.1"
-       |      port = $port
+       |      port = ${NetUtils.getAvailablePort}
        |    }
        | }
        |}
@@ -150,7 +149,7 @@ object AkkaSink {
       case Handle(remote) =>
         val ref: ActorRef = context.actorOf(Props(new ActorHandler(remote)))
         sender() ! ref
-      case Children =>
+      case HandlerAlive =>
         sender() ! context.children.size
     }
   }
@@ -160,7 +159,7 @@ object AkkaSink {
     *
     * @param remote ActorRef's remote actor
     */
-  final class ActorHandler(remote: ActorRef) extends Actor {
+  private final class ActorHandler(remote: ActorRef) extends Actor {
     private var e: Throwable = null
     context.watch(remote)
 

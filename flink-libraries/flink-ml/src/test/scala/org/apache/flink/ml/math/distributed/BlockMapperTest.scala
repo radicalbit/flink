@@ -40,8 +40,11 @@ class BlockMapperTest extends FlatSpec with Matchers with GivenWhenThen {
 
     simpleMapper.getBlockMappedCoordinates(3).get shouldBe(0, 3)
     simpleMapper.getBlockMappedCoordinates(0).get shouldBe(0, 0)
-    simpleMapper.getBlockMappedCoordinates(37).get shouldBe(4, 2)
-    simpleMapper.getBlockMappedCoordinates(61).get shouldBe(8, 4)
+    simpleMapper.getBlockMappedCoordinates(9).get shouldBe(1, 0)
+    simpleMapper.getBlockMappedCoordinates(10).get shouldBe(1, 1)
+    simpleMapper.getBlockMappedCoordinates(15).get shouldBe(1, 6)
+    simpleMapper.getBlockMappedCoordinates(48).get shouldBe(5, 3)
+    simpleMapper.getBlockMappedCoordinates(70).get shouldBe(7, 7)
   }
   it should "throw an exception" in {
     Given("a non valid blockId")

@@ -37,8 +37,8 @@ class BlockMapper(//original matrix size
     if (blockId > numBlockCols * numBlockRows)
       None
     else {
-      val i = math.ceil(blockId / numBlockRows).toInt
-      val j = math.ceil(blockId - i * numBlockCols).toInt
+      val i = blockId  / numBlockCols
+      val j = blockId % numBlockCols
       Some((i, j))
     }
   }

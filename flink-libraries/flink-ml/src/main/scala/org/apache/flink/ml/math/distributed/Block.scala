@@ -5,7 +5,13 @@ import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.{Matrix => FlinkMatrix}
 
 
-class Block(blockData: FlinkMatrix, blockID:Option[Int]=None) {
+class Block() {
+
+  var blockData: FlinkMatrix = null
+
+  def setBlockData (flinkMatrix: FlinkMatrix)= blockData=flinkMatrix
+
+  def getBlockData=blockData
 
   def toBreeze = blockData.asBreeze
 
@@ -29,7 +35,10 @@ class Block(blockData: FlinkMatrix, blockID:Option[Int]=None) {
 
 object Block {
 
-  def apply(data: FlinkMatrix) = new Block(data)
-
+  def apply(data: FlinkMatrix) = {
+    val b=new Block()
+    b.setBlockData(data)
+    b
+  }
 
 }

@@ -1,9 +1,9 @@
 package org.apache.flink.ml.math.distributed
 
-class BlockMapper(//original matrix size
-                  val numRows: Int, val numCols: Int,
+case class BlockMapper(//original matrix size
+                  numRows: Int, numCols: Int,
                   //block size
-                  val rowsPerBlock: Int, val colsPerBlock: Int
+                  rowsPerBlock: Int, colsPerBlock: Int
 
                    ) {
 

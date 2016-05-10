@@ -63,11 +63,11 @@ class DistributedRowMatrix(data: DataSet[IndexedRow], numRowsOpt: Option[Int] = 
   def toLocalDenseMatrix: DenseMatrix = this.toLocalSparseMatrix.toDenseMatrix
 
 
-
   def toBlockMatrix(rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
 
-    val rowGroupReducer = new RowGroupReducer(rowsPerBlock,colsPerBlock,numRows,numCols)
+    val rowGroupReducer = new RowGroupReducer(rowsPerBlock, colsPerBlock, numRows, numCols)
 
+    
     val blocks = data
       .groupBy(row => row.rowIndex % rowsPerBlock)
       .reduceGroup(rowGroupReducer)
@@ -96,10 +96,10 @@ object DistributedRowMatrix {
    */
   def fromCOO(data: DataSet[(Int, Int, Double)], numRows: Int, numCols: Int, isSorted: Boolean = false): DistributedRowMatrix
   = {
-    val vectorData: DataSet[SparseVector] = data
+    val vectorData: DataSet[(Int,SparseVector)] = data
       .groupBy(0)
       .reduceGroup(sparseRow => {
-
+        require(sparseRow.nonEmpty)
         val sortedRow =
           if (isSorted)
             sparseRow.toList
@@ -107,11 +107,14 @@ object DistributedRowMatrix {
             sparseRow.toList.sortBy(row => row._2)
 
         val (indices, values) = sortedRow.map(x => (x._2, x._3)).toList.unzip
-        SparseVector(numCols, indices.toArray, values.toArray)
+        (sortedRow.head._1,SparseVector(numCols, indices.toArray, values.toArray))
       }
       )
 
-    val zippedData = DataSetUtils(vectorData).zipWithIndex.map(x => IndexedRow(x._1.toInt, x._2))
+    val zippedData = vectorData
+      .map(
+        x =>
+        IndexedRow(x._1.toInt, x._2))
 
     new DistributedRowMatrix(zippedData, Some(numRows), Some(numCols))
   }
@@ -133,7 +136,6 @@ class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCol
     val slicesWithIndex: List[((Int, Int), Int)] = calculateSlices().zipWithIndex
 
     val splitRows: List[(Int, Int, Vector)] =
-
       sortedRows
         .flatMap(
           row => {

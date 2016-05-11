@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.ml.math.distributed
 
 import java.lang
@@ -46,7 +64,6 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
     for (
       IndexedRow(rowIndex, vector) <- localRows;
-
       (columnIndex, value) <- vector
     ) yield (rowIndex, columnIndex, value)
 
@@ -96,18 +113,22 @@ object DistributedRowMatrix {
    *                 If already sorted, set this parameter to true to skip sorting.
    * @return
    */
-  def fromCOO(data: DataSet[(Int, Int, Double)], numRows: Int, numCols: Int, isSorted: Boolean = false): DistributedRowMatrix
+  def fromCOO(data: DataSet[(Int, Int, Double)],
+              numRows: Int,
+              numCols: Int,
+              isSorted: Boolean = false): DistributedRowMatrix
   = {
     val vectorData: DataSet[(Int, SparseVector)] = data
       .groupBy(0)
       .reduceGroup(sparseRow => {
         require(sparseRow.nonEmpty)
         val sortedRow =
-          if (isSorted)
+          if (isSorted) {
             sparseRow.toList
-          else
+          }
+          else {
             sparseRow.toList.sortBy(row => row._2)
-
+          }
         val (indices, values) = sortedRow.map(x => (x._2, x._3)).toList.unzip
         (sortedRow.head._1, SparseVector(numCols, indices.toArray, values.toArray))
       }
@@ -126,7 +147,8 @@ case class IndexedRow(rowIndex: Int, values: Vector) extends Ordered[IndexedRow]
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
 }
 
-class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCols: Int) extends RichGroupReduceFunction[IndexedRow, (Int, Block)] {
+class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCols: Int)
+  extends RichGroupReduceFunction[IndexedRow, (Int, Block)] {
 
   import org.apache.flink.ml.math.Breeze._
 
@@ -174,11 +196,12 @@ class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCol
           val start = x * colsPerBlock
 
           val endT = (x + 1) * colsPerBlock - 1
-          val end = if (endT > numCols - 1)
+          val end = if (endT > numCols - 1) {
             numCols - 1
-          else
+          }
+          else {
             endT
-
+          }
           (start, end)
         }
       ).toList

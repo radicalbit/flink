@@ -1,15 +1,32 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.ml.math.distributed
 
 
-import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.math.distributed.BlockMatrix.{BlockID, MatrixFormatException, WrongMatrixCoordinatesException}
+import org.apache.flink.ml.math.distributed.BlockMatrix.BlockID
 
 
 //TODO: test EVERYTHING
-class BlockMatrix(//actual data
-                  data: DataSet[(BlockID, Block)],
-                  blockMapper: BlockMapper
+class BlockMatrix(
+                   data: DataSet[(BlockID, Block)],
+                   blockMapper: BlockMapper
                    ) extends DistributedMatrix {
 
   val getDataset = data
@@ -22,6 +39,8 @@ class BlockMatrix(//actual data
 
   val getRowsPerBlock = blockMapper.rowsPerBlock
   val getColsPerBlock = blockMapper.colsPerBlock
+
+  val getNumBlocks = blockMapper.numBlocks
 
   def multiply(other: BlockMatrix): BlockMatrix = {
 
@@ -51,8 +70,13 @@ class BlockMatrix(//actual data
         (blockID, block._3)
       })
     new BlockMatrix(reducedBlocks,
-      //TODO: check on paper
-      new BlockMapper(other.getNumRows, this.getNumCols, this.blockMapper.rowsPerBlock, this.blockMapper.colsPerBlock))
+
+      new BlockMapper(other.getNumRows,
+        this.getNumCols,
+        this.blockMapper.rowsPerBlock,
+        this.blockMapper.colsPerBlock
+      )
+    )
   }
 
 }

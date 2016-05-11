@@ -19,25 +19,25 @@ package org.apache.flink.connectors.akka.streaming
 
 import java.io.IOException
 
-import akka.actor.{Actor, Props, ActorRef, ActorSystem, Terminated}
+import akka.actor.Actor.Receive
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
+import org.apache.flink.util.NetUtils
+import org.slf4j.LoggerFactory
+
 import scala.concurrent.Await
 
 /**
   * Sink that emits its input elements to a remote actor
   *
-  * @param systemName Actor System's name, default is "akka-sink"
   * @param path remote actor's path
-  * @param config Sequence of Akka System's configuration
   * @tparam IN Type of the elements emitted by this sink
   */
-class AkkaSink[IN](systemName: String = "akka-sink",
-                   path: String,
-                   config: Seq[Config]
-                  )(implicit timeout: akka.util.Timeout) extends RichSinkFunction[IN] {
+class AkkaSink[IN](path: String)(implicit timeout: akka.util.Timeout)
+  extends RichSinkFunction[IN] {
 
   @transient private var actorSystem: ActorSystem = _
 
@@ -49,22 +49,13 @@ class AkkaSink[IN](systemName: String = "akka-sink",
     * Starts Actor System and ActorHandler to manage connection between Sink and remote Actor
     *
     * @param parameters The configuration containing the parameters attached to the contract.
-    * @throws IllegalArgumentException
-    *                              number of configurations must be equal to function's parallelism
-    *                              remote Actor not found via path
+    * @throws IllegalArgumentException remote Actor not found via path
     */
   @throws[IllegalStateException]
   override def open(parameters: Configuration): Unit = {
 
-    require(
-      config.size == getRuntimeContext.getNumberOfParallelSubtasks,
-      "config.size must be equal to Sink's parallelism"
-    )
-
-    val index = getRuntimeContext.getIndexOfThisSubtask
-    val name = s"$systemName-$index"
-
-    actorSystem = ActorSystem(name, config(index))
+    actorSystem = AkkaSink.actorSystem
+    val guardian = AkkaSink.actorGuardian
 
     // check if remote actor exists
     val remote = try {
@@ -73,7 +64,7 @@ class AkkaSink[IN](systemName: String = "akka-sink",
       case e: Throwable => throw new IllegalArgumentException(s"Remote actor not found: $path", e)
     }
 
-    handler = actorSystem.actorOf(Props(new ActorHandler(remote)))
+    handler = Await.result((guardian ? AkkaSink.Handle(remote)).mapTo[ActorRef], timeout.duration)
   }
 
   @throws[IOException]
@@ -84,7 +75,7 @@ class AkkaSink[IN](systemName: String = "akka-sink",
     }
 
     val response = Await.result((handler ? value).mapTo[Either[Throwable,Unit]], timeout.duration)
-    response.fold(t => asyncException = t, u => Unit)
+    response.fold(t => asyncException = t, u => ())
   }
 
   /**
@@ -92,7 +83,75 @@ class AkkaSink[IN](systemName: String = "akka-sink",
     */
   override def close(): Unit = {
     actorSystem.stop(handler)
-    actorSystem.shutdown()
+    AkkaSink.tryStopActorSystem()
+  }
+
+}
+
+/**
+  *  Companion Object
+  */
+object AkkaSink {
+
+	/**
+    *  TaskManager's ActorSystem of the AkkaSink
+    *  It must be one per TaskManager
+    */
+  private lazy val actorSystem: ActorSystem = ActorSystem("akka-sink", AkkaSink.conf)
+
+  private lazy val actorGuardian: ActorRef = actorSystem.actorOf(Props(new ActorGuardian()))
+
+  protected case class Handle(remote: ActorRef)
+  protected case object HandlerAlive
+
+  /**
+    *   If ActorGuardian doesn't have more children alive, actorSystem is gonna shutdown
+    */
+  private def tryStopActorSystem()(implicit timeout: akka.util.Timeout): Unit = {
+
+    // remaining ActorHandler
+    val actorHandlerAlive: Int = Await.result((actorGuardian ? HandlerAlive).mapTo[Int], timeout.duration)
+    if (actorHandlerAlive == 0) {
+      actorSystem.shutdown()
+    }
+  }
+  /**
+    * Actor System's configuration
+    *
+    */
+  val conf = ConfigFactory.parseString {
+    s"""
+       |akka {
+       |  actor {
+       |    provider = "akka.remote.RemoteActorRefProvider"
+       |  }
+       |  enabled-transports = ["akka.remote.netty.tcp"]
+       |  remote {
+       |    netty.tcp {
+       |      hostname = "127.0.0.1"
+       |      port = ${NetUtils.getAvailablePort}
+       |    }
+       | }
+       |}
+       |""".stripMargin
+  }
+
+  //
+  //    INTERNAL ACTORS
+  //
+
+  /**
+    *  Actor Guardian is responsible to manage lifecycle of the TaskManager's ActorHandlers
+    *  It must be one per TaskManager
+    */
+  private final class ActorGuardian extends Actor {
+    override def receive: Receive = {
+      case Handle(remote) =>
+        val ref: ActorRef = context.actorOf(Props(new ActorHandler(remote)))
+        sender() ! ref
+      case HandlerAlive =>
+        sender() ! context.children.size
+    }
   }
 
   /**
@@ -100,7 +159,7 @@ class AkkaSink[IN](systemName: String = "akka-sink",
     *
     * @param remote ActorRef's remote actor
     */
-  final class ActorHandler(remote: ActorRef) extends Actor {
+  private final class ActorHandler(remote: ActorRef) extends Actor {
     private var e: Throwable = null
     context.watch(remote)
 
@@ -111,7 +170,7 @@ class AkkaSink[IN](systemName: String = "akka-sink",
         context.unwatch(remote)
       case element =>
         remote ! element
-        sender ! Either.cond(e == null, Unit, e)
+        sender ! Either.cond(e == null, (), e)
     }
   }
 }

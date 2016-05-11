@@ -83,7 +83,9 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
 
   def toBlockMatrix(rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
-
+    require(rowsPerBlock>0&&colsPerBlock>0, "Block sizes must be a strictly positive value.")
+    require(rowsPerBlock<=getNumRows&&colsPerBlock<=getNumCols, "Blocks can't be bigger than the matrix")
+    
     val rowGroupReducer = new RowGroupReducer(rowsPerBlock, colsPerBlock, getNumRows, getNumCols)
 
     val blockMapper = new BlockMapper(getNumRows, getNumCols, rowsPerBlock, colsPerBlock)

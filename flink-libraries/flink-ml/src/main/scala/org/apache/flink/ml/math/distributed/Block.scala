@@ -30,6 +30,13 @@ class Block() {
 
   def sum(other: Block) = Block((blockData.asBreeze + other.toBreeze).fromBreeze)
 
+  override def equals(other:Any)= {
+    other match{
+      case x:Block=>
+        this.blockData.equalsMatrix(x.getBlockData)
+      case _=>false
+    }
+  }
 
 }
 

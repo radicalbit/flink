@@ -1,6 +1,7 @@
 package org.apache.flink.ml.math.distributed
 
 
+import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.math.distributed.BlockMatrix.{BlockID, MatrixFormatException, WrongMatrixCoordinatesException}
 
@@ -31,14 +32,8 @@ class BlockMatrix(//actual data
     val joinedBlocks = data.join(other.getDataset).where(0).equalTo(1)
     val multipliedJoinedBlocks = joinedBlocks.map(x => {
       val ((idl, left), (idr, right)) = x
-      val (i, j) = blockMapper.getBlockMappedCoordinates(idl) match {
-        case Some(x) => x
-        case None => throw new MatrixFormatException(s"Block $idl does not exist.")
-      }
-      val (s, t) = blockMapper.getBlockMappedCoordinates(idr) match {
-        case Some(x) => x
-        case None => throw new MatrixFormatException(s"Block $idr does not exist.")
-      }
+      val (i, j) = blockMapper.getBlockMappedCoordinates(idl)
+      val (s, t) = blockMapper.getBlockMappedCoordinates(idr)
       require(j == s)
       (i, t, left.multiply(right))
 
@@ -51,11 +46,7 @@ class BlockMatrix(//actual data
     )
       .map(block => {
 
-        val blockID = blockMapper.getBlockIdByCoordinates(block._1, block._2) match {
-          case Some(blockId) => blockId
-          case None => throw new WrongMatrixCoordinatesException(
-            s"(${block._1},${block._2}) are not valid coordinates for a matrix of size ${this.getNumRows}-${this.getNumCols}")
-        }
+        val blockID = blockMapper.getBlockIdByCoordinates(block._1, block._2)
 
         (blockID, block._3)
       })
@@ -63,7 +54,6 @@ class BlockMatrix(//actual data
       //TODO: check on paper
       new BlockMapper(other.getNumRows, this.getNumCols, this.blockMapper.rowsPerBlock, this.blockMapper.colsPerBlock))
   }
-
 
 }
 

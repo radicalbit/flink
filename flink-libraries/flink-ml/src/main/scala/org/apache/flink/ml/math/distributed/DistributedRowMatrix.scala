@@ -5,7 +5,6 @@ import java.lang
 import breeze.linalg.{CSCMatrix => BreezeSparseMatrix, Matrix => BreezeMatrix, Vector => BreezeVector}
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
 import org.apache.flink.api.scala._
-import org.apache.flink.api.scala.utils.DataSetUtils
 import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
 import org.apache.flink.util.Collector
 
@@ -17,13 +16,16 @@ import scala.collection.JavaConversions._
  * @param numRowsOpt If None, will be calculated from the DataSet.
  * @param numColsOpt If None, will be calculated from the DataSet.
  */
-class DistributedRowMatrix(data: DataSet[IndexedRow], numRowsOpt: Option[Int] = None, numColsOpt: Option[Int] = None) extends DistributedMatrix {
+class DistributedRowMatrix(data: DataSet[IndexedRow],
+                           numRowsOpt: Option[Int] = None,
+                           numColsOpt: Option[Int] = None)
+  extends DistributedMatrix {
 
-  lazy val numRows = numRowsOpt match {
+  lazy val getNumRows = numRowsOpt match {
     case Some(rows) => rows
     case None => data.count().toInt
   }
-  lazy val numCols =
+  lazy val getNumCols =
     numColsOpt match {
       case Some(cols) => cols
       case None => getCols
@@ -53,9 +55,9 @@ class DistributedRowMatrix(data: DataSet[IndexedRow], numRowsOpt: Option[Int] = 
   def toLocalSparseMatrix: SparseMatrix = {
 
 
-    val localMatrix = SparseMatrix.fromCOO(this.numRows, this.numCols, this.toCoo)
-    require(localMatrix.numRows == this.numRows)
-    require(localMatrix.numCols == this.numCols)
+    val localMatrix = SparseMatrix.fromCOO(this.getNumRows, this.getNumCols, this.toCoo)
+    require(localMatrix.numRows == this.getNumRows)
+    require(localMatrix.numCols == this.getNumCols)
     localMatrix
   }
 
@@ -65,14 +67,14 @@ class DistributedRowMatrix(data: DataSet[IndexedRow], numRowsOpt: Option[Int] = 
 
   def toBlockMatrix(rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
 
-    val rowGroupReducer = new RowGroupReducer(rowsPerBlock, colsPerBlock, numRows, numCols)
+    val rowGroupReducer = new RowGroupReducer(rowsPerBlock, colsPerBlock, getNumRows, getNumCols)
 
-    
+    val blockMapper = new BlockMapper(getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
+
     val blocks = data
-      .groupBy(row => row.rowIndex % rowsPerBlock)
+      .groupBy(row => blockMapper.absCoordToMappedCoord(row.rowIndex, 0)._1)
       .reduceGroup(rowGroupReducer)
 
-    val blockMapper = new BlockMapper(numRows, numCols, rowsPerBlock, colsPerBlock)
 
     new BlockMatrix(blocks, blockMapper)
   }
@@ -96,7 +98,7 @@ object DistributedRowMatrix {
    */
   def fromCOO(data: DataSet[(Int, Int, Double)], numRows: Int, numCols: Int, isSorted: Boolean = false): DistributedRowMatrix
   = {
-    val vectorData: DataSet[(Int,SparseVector)] = data
+    val vectorData: DataSet[(Int, SparseVector)] = data
       .groupBy(0)
       .reduceGroup(sparseRow => {
         require(sparseRow.nonEmpty)
@@ -107,14 +109,14 @@ object DistributedRowMatrix {
             sparseRow.toList.sortBy(row => row._2)
 
         val (indices, values) = sortedRow.map(x => (x._2, x._3)).toList.unzip
-        (sortedRow.head._1,SparseVector(numCols, indices.toArray, values.toArray))
+        (sortedRow.head._1, SparseVector(numCols, indices.toArray, values.toArray))
       }
       )
 
     val zippedData = vectorData
       .map(
         x =>
-        IndexedRow(x._1.toInt, x._2))
+          IndexedRow(x._1.toInt, x._2))
 
     new DistributedRowMatrix(zippedData, Some(numRows), Some(numCols))
   }
@@ -150,19 +152,13 @@ class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCol
 
     splitRows.groupBy(_._2).map(splitRowGroup => {
       val (mappedColIndex, rowGroup) = splitRowGroup
-
-
       createBlock(rowGroup, blockMapper)
     })
       .foreach(blockWithIndices => {
         val (i, j, block) = blockWithIndices
 
 
-        val blockID = blockMapper.getBlockIdByCoordinates(i, j) match {
-          case Some(id) => id
-          case None => throw new Exception("Invalid block coordinates requested.")
-
-        }
+        val blockID = blockMapper.getBlockIdByMappedCoord(i, j)
         out.collect((blockID, block))
       })
 
@@ -192,18 +188,21 @@ class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCol
   def createBlock(data: List[(Int, Int, Vector)], blockMapper: BlockMapper): (Int, Int, Block) = {
     require(data.nonEmpty)
     val mappedColIndex = data.head._2
-    val mappedRowIndex = blockMapper.getBlockIdByCoordinates(data.head._1, 0).get
+    val mappedRowIndex = blockMapper.absCoordToMappedCoord(data.head._1, 0)._1
     val coo = data.flatMap(blockPart => {
       val (rowIndex, mappedColIndex, vector) = blockPart
       for {
         (colIndex, value) <- vector.iterator
-      } yield (rowIndex, colIndex, value)
+      } yield (rowIndex % rowsPerBlock, colIndex, value)
 
     })
 
-    val matrix: FlinkMatrix = SparseMatrix.fromCOO(
-      blockMapper.rowsPerBlock, blockMapper.colsPerBlock, coo)
-    (mappedRowIndex, mappedColIndex, Block(matrix))
+    val matrix: FlinkMatrix = SparseMatrix
+      .fromCOO(blockMapper.rowsPerBlock,
+        blockMapper.colsPerBlock,
+        coo)
+    val block = (mappedRowIndex, mappedColIndex, Block(matrix))
+    block
   }
 
 }

@@ -88,7 +88,7 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     
     val rowGroupReducer = new RowGroupReducer(rowsPerBlock, colsPerBlock, getNumRows, getNumCols)
 
-    val blockMapper = new BlockMapper(getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
+    val blockMapper = BlockMapper(getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
 
     val blocks = data
       .groupBy(row => blockMapper.absCoordToMappedCoord(row.rowIndex, 0)._1)
@@ -155,7 +155,7 @@ class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCol
   import org.apache.flink.ml.math.Breeze._
 
   override def reduce(values: lang.Iterable[IndexedRow], out: Collector[(Int, Block)]): Unit = {
-    val blockMapper = new BlockMapper(numRows, numCols, rowsPerBlock, colsPerBlock)
+    val blockMapper = BlockMapper(numRows, numCols, rowsPerBlock, colsPerBlock)
 
     val sortedRows = values.toList.sorted
     require(sortedRows.max.rowIndex - sortedRows.min.rowIndex <= rowsPerBlock)

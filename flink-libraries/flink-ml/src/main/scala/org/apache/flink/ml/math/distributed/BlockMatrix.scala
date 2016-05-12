@@ -19,6 +19,7 @@
 package org.apache.flink.ml.math.distributed
 
 
+import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.math.distributed.BlockMatrix.BlockID
 
@@ -48,15 +49,8 @@ class BlockMatrix(
     require(this.getColsPerBlock == other.getColsPerBlock)
     require(this.getRowsPerBlock == other.getRowsPerBlock)
 
-    val joinedBlocks = data.join(other.getDataset).where(0).equalTo(1)
-    val multipliedJoinedBlocks = joinedBlocks.map(x => {
-      val ((idl, left), (idr, right)) = x
-      val (i, j) = blockMapper.getBlockMappedCoordinates(idl)
-      val (s, t) = blockMapper.getBlockMappedCoordinates(idr)
-      require(j == s)
-      (i, t, left.multiply(right))
-
-    })
+    val joinedBlocks = data.join(other.getDataset).where(x=>x._1).equalTo(x=>x._1)
+    val multipliedJoinedBlocks = joinedBlocks.map(new MultiplyMapper(blockMapper))
 
     val reducedBlocks = multipliedJoinedBlocks.reduce(
       (x, y) => {
@@ -71,7 +65,7 @@ class BlockMatrix(
       })
     new BlockMatrix(reducedBlocks,
 
-      new BlockMapper(other.getNumRows,
+      BlockMapper(other.getNumRows,
         this.getNumCols,
         this.blockMapper.rowsPerBlock,
         this.blockMapper.colsPerBlock
@@ -79,6 +73,18 @@ class BlockMatrix(
     )
   }
 
+}
+
+class MultiplyMapper (blockMapper:BlockMapper)
+  extends RichMapFunction[((BlockMatrix.BlockID, Block), (BlockMatrix.BlockID, Block)),(Int, Int, Block)]{
+
+  override def map(value: ((BlockMatrix.BlockID, Block), (BlockMatrix.BlockID, Block))): (Int, Int, Block) = {
+    val ((idl, left), (idr, right)) = value
+    val (i, j) = blockMapper.getBlockMappedCoordinates(idl)
+    val (s, t) = blockMapper.getBlockMappedCoordinates(idr)
+    require(j == s)
+    (i, t, left.multiply(right))
+  }
 }
 
 object BlockMatrix {

@@ -18,16 +18,44 @@
 
 package org.apache.flink.ml.math.distributed
 
-case class BlockMapper(//original matrix size
-                  val numRows: Int, val numCols: Int,
-                  //block size
-                  val rowsPerBlock: Int, val colsPerBlock: Int
-                   ) {
 
+/**
+ * This class is in charge of handling all the spatial logic required by BlockMatrix.
+ * It introduces a new space of zero-indexed coordinates (i,j), called "mapped coordinates". This is a space where
+ * blocks are indexed (starting from zero).
+ *
+ * So every coordinate in the original space can be mapped to this space and to the corrisponding block.
+ * A block have a row and a column coordinate that explicits its position.
+ * Every set of coordinates in the mapped space corresponds to a square of size rowPerBlock x colsPerBlock.
+ *
+ */
+
+case class BlockMapper(//original matrix size
+                       numRows: Int,  numCols: Int,
+                       //block size
+                        rowsPerBlock: Int, colsPerBlock: Int
+                        ) {
   val numBlockRows: Int = math.ceil(numRows * 1.0 / rowsPerBlock).toInt
   val numBlockCols: Int = math.ceil(numCols * 1.0 / colsPerBlock).toInt
   val numBlocks = numBlockCols * numBlockRows
 
+
+  /**
+   * Translates absolute coordinates to the mapped coordinates of the block
+   * these coordinates belong to.
+   * @param i
+   * @param j
+   * @return
+   */
+  def absCoordToMappedCoord(i: Int, j: Int): (Int, Int) =
+    getBlockMappedCoordinates(getBlockIdByCoordinates(i, j))
+
+  /**
+   * Retrieves a block id from original coordinates
+   * @param i Original row
+   * @param j Original column
+   * @return Block ID
+   */
   def getBlockIdByCoordinates(i: Int, j: Int): Int = {
 
     if (i < 0 || j < 0 || i >= numRows || j >= numCols) {
@@ -44,6 +72,11 @@ case class BlockMapper(//original matrix size
     }
   }
 
+  /**
+   * Retrieves mapped coordinates for a given block.
+   * @param blockId
+   * @return
+   */
   def getBlockMappedCoordinates(blockId: Int): (Int, Int) = {
     if (blockId < 0 || blockId > numBlockCols * numBlockRows) {
       throw new IllegalArgumentException(
@@ -58,17 +91,12 @@ case class BlockMapper(//original matrix size
     }
   }
 
-
   /**
-   * Translates absolute coordinates to the mapped coordinates of the block
-   * these coordinates belong to.
+   * Retrieves the ID of the block at the given coordinates
    * @param i
    * @param j
    * @return
    */
-  def absCoordToMappedCoord(i: Int, j: Int): (Int, Int) =
-    getBlockMappedCoordinates(getBlockIdByCoordinates(i, j))
-
   def getBlockIdByMappedCoord(i: Int, j: Int): Int = {
 
     if (i < 0 || j < 0 || i >= numBlockRows || j >= numBlockCols) {
@@ -83,5 +111,3 @@ case class BlockMapper(//original matrix size
 
 
 }
-
-

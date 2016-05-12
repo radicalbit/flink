@@ -23,13 +23,13 @@ import org.scalatest.{FlatSpec, GivenWhenThen, Matchers}
 class BlockMapperTest extends FlatSpec with Matchers with GivenWhenThen {
 
 
-  val simpleMapper = new BlockMapper(90, 60, 12, 7)
+  val simpleMapper = BlockMapper(90, 60, 12, 7)
 
 
   "getBlockId" should "return a valid blockId" in {
     Given("valid block coordinates")
 
-    val verySimpleMapper = new BlockMapper(4, 4, 2, 2)
+    val verySimpleMapper = BlockMapper(4, 4, 2, 2)
 
 
     simpleMapper.getBlockIdByCoordinates(0, 0) shouldBe 0
@@ -85,7 +85,7 @@ class BlockMapperTest extends FlatSpec with Matchers with GivenWhenThen {
   "BlockMapper constructor" should "create a valid BlockMapper" in {
 
     Given("valid parameters")
-    val mapper = new BlockMapper(200, 60, 64, 7)
+    val mapper = BlockMapper(200, 60, 64, 7)
     mapper.numBlockRows shouldBe 4
     mapper.numBlockCols shouldBe 9
 

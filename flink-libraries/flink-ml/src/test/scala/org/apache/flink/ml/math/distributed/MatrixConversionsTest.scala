@@ -98,7 +98,6 @@ class MatrixConversionsTest extends FlatSpec with Matchers {
     val dataMap=blockMatrix2.getDataset.collect().toMap
 
     dataMap(3).getBlockData(2,10) shouldBe 42.0
-    dataMap.map(x=>(x._1,x._2.toBreeze)).foreach(println)
 
     dataMap(blockMatrix2.getNumBlocks-1).getBlockData(0,19) shouldBe 123.0
 

@@ -70,7 +70,7 @@ object Block {
 
   def zero(rows:Int,cols:Int)={
     val b=new Block()
-    val zeros=SparseMatrix.fromCOO(rows,cols,List())
+    val zeros=SparseMatrix.fromCOO(rows,cols,List((0,0,0.0)))
     b.setBlockData(zeros)
     b
   }

@@ -22,7 +22,9 @@ package org.apache.flink.ml.math.distributed
 import java.lang
 
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, RichMapFunction}
-import org.apache.flink.api.scala._
+import org.apache.flink.api.common.typeinfo.{TypeHint, IntegerTypeInfo, TypeInformation}
+import org.apache.flink.api.scala.{createTypeInformation, _}
+import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.SparseVector
 import org.apache.flink.ml.math.distributed.BlockMatrix.BlockID
 import org.apache.flink.util.Collector
@@ -47,6 +49,54 @@ class BlockMatrix(
   val getColsPerBlock = blockMapper.colsPerBlock
 
   val getNumBlocks = blockMapper.numBlocks
+
+
+  def hasSameFormat(other: BlockMatrix): Boolean =
+    this.getNumRows == other.getNumRows &&
+      this.getNumCols == other.getNumCols &&
+      this.getRowsPerBlock == other.getRowsPerBlock &&
+      this.getColsPerBlock == other.getColsPerBlock
+
+
+  def blockPairOperation(fun: (Block, Block) => Block, other: BlockMatrix): BlockMatrix = {
+    require(hasSameFormat(other))
+    val ev1: TypeInformation[BlockID] = TypeInformation.of(classOf[Int])
+    val processedBlocks = this.getDataset.fullOuterJoin(other.getDataset)
+      .where(_._1).equalTo(_._1)(ev1) {
+      (left: (BlockID, Block), right: (BlockID, Block)) => {
+
+
+        val (id1, block1) = if (left == null) {
+          (right._1, Block.zero(right._2.getRows, right._2.getCols))
+        } else {
+          left
+        }
+
+        val (id2, block2) =
+          if (right == null) {
+            (left._1, Block.zero(left._2.getRows, left._2.getCols))
+          } else {
+            right
+          }
+
+
+        require(id1 == id2)
+        (id1, fun(block1, block2))
+      }
+    }
+    new BlockMatrix(processedBlocks, blockMapper)
+  }
+
+  def sum(other: BlockMatrix): BlockMatrix = {
+    val sumFunction: (Block, Block) => Block = (b1: Block, b2: Block) => Block((b1.toBreeze + b2.toBreeze).fromBreeze)
+    this.blockPairOperation(sumFunction, other)
+  }
+
+
+  def subtraction(other: BlockMatrix): BlockMatrix = {
+    val subFunction: (Block, Block) => Block = (b1: Block, b2: Block) => Block((b1.toBreeze - b2.toBreeze).fromBreeze)
+    this.blockPairOperation(subFunction, other)
+  }
 
   //TODO: broken
   def multiply(other: BlockMatrix): BlockMatrix = {

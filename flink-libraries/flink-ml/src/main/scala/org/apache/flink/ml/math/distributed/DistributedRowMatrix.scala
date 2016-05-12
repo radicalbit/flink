@@ -51,6 +51,7 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
   val indices = data.map(_.rowIndex)
   val values = data.map(_.values)
+  val getRowData = data
 
   private def getCols: Int =
     data.first(1).collect().headOption match {
@@ -83,9 +84,9 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
 
   def toBlockMatrix(rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
-    require(rowsPerBlock>0&&colsPerBlock>0, "Block sizes must be a strictly positive value.")
-    require(rowsPerBlock<=getNumRows&&colsPerBlock<=getNumCols, "Blocks can't be bigger than the matrix")
-    
+    require(rowsPerBlock > 0 && colsPerBlock > 0, "Block sizes must be a strictly positive value.")
+    require(rowsPerBlock <= getNumRows && colsPerBlock <= getNumCols, "Blocks can't be bigger than the matrix")
+
     val rowGroupReducer = new RowGroupReducer(rowsPerBlock, colsPerBlock, getNumRows, getNumCols)
 
     val blockMapper = BlockMapper(getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
@@ -147,6 +148,9 @@ object DistributedRowMatrix {
 
 case class IndexedRow(rowIndex: Int, values: Vector) extends Ordered[IndexedRow] {
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
+
+  override def toString:String=s"($rowIndex,${values.toString}"
+
 }
 
 class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCols: Int)

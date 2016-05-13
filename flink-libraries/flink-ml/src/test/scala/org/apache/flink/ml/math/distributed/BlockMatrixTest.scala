@@ -29,22 +29,30 @@ class BlockMatrixTest extends FlatSpec with Matchers with GivenWhenThen {
   val rawSampleData = List(
     (0, 0, 3.0),
     (1, 0, 1.0),
-    (0, 1, 4.0)
-
+    (3, 1, 4.0),
+    (3, 3, 12.0)
   )
 
-  val bm1 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData), 2, 2).toBlockMatrix(1, 1)
+  val bm1 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData), 4, 4).toBlockMatrix(3, 3)
 
   val rawSampleData2 = List(
     (0, 0, 2.0),
-    (1, 1, 1.0)
+    (1, 1, 1.0),
+    (1, 2, 12.0),
+    (3, 2, 35.0)
   )
 
-  val bm2 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData2), 2, 2).toBlockMatrix(1, 1)
+  val bm2 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData2), 4, 4).toBlockMatrix(3, 3)
 
 
   "multiply" should "correctly multiply two matrices" in {
-    bm1.multiply(bm2).getDataset.map(x => (x._1, x._2.toBreeze)).collect.foreach(println)
+    bm1.multiply(bm2).toRowMatrix.toCOO.toSet.filter(_._3!=0) shouldBe
+      Set(
+        (0, 0, 6.0),
+        (1, 0, 2.0),
+        (3, 1, 4.0),
+        (3, 2, 468.0)
+      )
   }
 
   "sum" should "correctly sum two matrices" in {

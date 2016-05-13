@@ -21,7 +21,7 @@ package org.apache.flink.ml.math.distributed
 
 import java.lang
 
-import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTypeInformation, _}
 import org.apache.flink.ml.math.Breeze._
@@ -127,29 +127,19 @@ class BlockMatrix(
 
     val otherWithCoord = other.getDataset.map(new MapToMappedCoord(blockMapper))
 
-    val joinedBlocks = data.map(
-      new MapToMappedCoord(blockMapper)).
-      join(otherWithCoord)
+    val dataWithCoord = data.map(
+      new MapToMappedCoord(blockMapper))
 
-      .where(x => x._2)
-      .equalTo(x => x._1)
+    val joinedBlocks = dataWithCoord.join(otherWithCoord).where(1).equalTo(0)
 
-    val multipliedJoinedBlocks = joinedBlocks.map(new MultiplyMapper(blockMapper))
+    val groupedBlocks = joinedBlocks.groupBy(x => (x._1._1, x._2._2))
 
-    multipliedJoinedBlocks.collect().foreach { x =>
-      val toPrint = x._4.toBreeze
-      println(toPrint)
-    }
+    val reducedBlocks = groupedBlocks.reduceGroup(new GroupMultiplyReduction(blockMapper))
 
 
 
-    val reducedBlocks = multipliedJoinedBlocks.groupBy(0).reduceGroup(group => {
-      group.reduce((x, y) => {
-        (x._1, y._2, x._3, x._4 sum y._4)
-      })
-    }
-    ).map(x => (x._2, x._3, x._4))
-      .map(new MapToBlockID(blockMapper))
+
+
     new BlockMatrix(reducedBlocks,
 
       BlockMapper(other.getNumRows,
@@ -159,7 +149,6 @@ class BlockMatrix(
       )
     )
   }
-
 
 
   def toRowMatrix: DistributedRowMatrix = {
@@ -215,33 +204,32 @@ class MapToMappedCoord(blockMapper: BlockMapper) extends MapFunction[(Int, Block
  * GroupReduce function used in the conversion to row matrix format.
  * @param blockMapper
  */
-class ToRowMatrixReducer(blockMapper: BlockMapper) extends RichGroupReduceFunction[
-  (Int, Int, Block), IndexedRow] {
-  override def reduce(
-                       values: lang.Iterable[(Int, Int, Block)],
-                       out: Collector[IndexedRow]): Unit = {
+class ToRowMatrixReducer(blockMapper: BlockMapper)
+  extends RichGroupReduceFunction[(Int, Int, Block), IndexedRow] {
+
+  override def reduce(values: lang.Iterable[(Int, Int, Block)],
+                      out: Collector[IndexedRow]): Unit = {
     val blockGroup = values.toList
     require(blockGroup.nonEmpty)
-
     val groupRow = blockGroup.head._1
     //all blocks must have the same row
     require(blockGroup.forall(block => block._1 == groupRow))
-
     //map every block to its mapped column
     val groupElements = blockGroup.map(block=>(block._2,block._3) )
-  //sort by column
-  .sortBy(_._1)
-  //unpack values
-  .flatMap(
-  block=>
-  block._2.getBlockData.toList
-//map coordinates from block space to original space
-.map(element=>{
-val (i,j,value)=element
+    //sort by column
+    .sortBy(_._1)
+    //unpack values
+    .flatMap(
+        block=>
 
-(i+(groupRow*blockMapper.rowsPerBlock),j+block._1*blockMapper.colsPerBlock,value)
-})
-)
+        //map coordinates from block space to original space
+          block._2.getBlockData.toIterator.filter(_._3!=0)map(element=>{
+          val (i,j,value)=element
+
+          (i+(groupRow*blockMapper.rowsPerBlock),j+block._1*blockMapper.colsPerBlock,value)
+          })
+          )
+
     groupElements
       .groupBy(_._1)
       .foreach(row => {
@@ -256,15 +244,25 @@ val (i,j,value)=element
 }
 
 
+class GroupMultiplyReduction(blockMapper: BlockMapper)
+  extends RichGroupReduceFunction[((Int, Int, Block), (Int, Int, Block)), (BlockID, Block)] {
+  override def reduce(
+                       values: lang.Iterable[((BlockID, Int, Block), (Int, Int, Block))],
+                       out: Collector[(BlockID, Block)]): Unit = {
+    val multipliedGroups: Seq[(Int, Int, Block)] = values.map {
+      case ((i, j, left), (s, t, right)) => (i, t, left.multiply(right))
+    }.toSeq
 
-class MultiplyMapper(blockMapper: BlockMapper)
-  extends RichMapFunction[((Int, Int, Block), (Int, Int, Block)), (Int, Int, Int, Block)] {
+    val res = multipliedGroups.reduce(
+      (l, r) => {
+        val ((i, j, left), (s, t, right)) = (l, r)
 
-  override def map(value: ((Int, Int, Block), (Int, Int, Block))): (Int, Int, Int, Block) = {
-    val ((i, j, left), (s, t, right)) = value
+        (i, j, left.sum(right))
 
-    require(j == s, s"Block rows and column must match $j - $s")
-    (j, i, t, left.multiply(right))
+      }
+    )
+    out.collect((blockMapper.getBlockIdByMappedCoord(res._1, res._2), res._3))
   }
+
 }
 

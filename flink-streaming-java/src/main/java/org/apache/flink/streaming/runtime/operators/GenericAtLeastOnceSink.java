@@ -70,19 +70,6 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 		committer.setOperatorId(id);
 		committer.setOperatorSubtaskId(getRuntimeContext().getIndexOfThisSubtask());
 		committer.open();
-
-		synchronized (this.state.pendingHandles) { //remove all handles that were already committed
-			Set<Long> pastCheckpointIds = this.state.pendingHandles.keySet();
-			Set<Long> checkpointsToRemove = new HashSet<>();
-			for (Long pastCheckpointId : pastCheckpointIds) {
-				if (committer.isCheckpointCommitted(pastCheckpointId)) {
-					checkpointsToRemove.add(pastCheckpointId);
-				}
-			}
-			for (Long toRemove : checkpointsToRemove) {
-				this.state.pendingHandles.remove(toRemove);
-			}
-		}
 	}
 
 	public void close() throws Exception {
@@ -116,7 +103,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 	public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
 		super.restoreState(state, recoveryTimestamp);
 		this.state = (ExactlyOnceState) state.getFunctionState();
-		
+
 		out = null;
 	}
 
@@ -196,11 +183,7 @@ public abstract class GenericAtLeastOnceSink<IN> extends AbstractStreamOperator<
 
 		@Override
 		public long getStateSize() throws Exception {
-			int stateSize = 0;
-			for (Tuple2<Long, StateHandle<DataInputView>> pair : pendingHandles.values()) {
-				stateSize += pair.f1.getStateSize();
-			}
-			return stateSize;
+			return pendingHandles.values().size();
 		}
 	}
 }

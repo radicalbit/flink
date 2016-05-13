@@ -27,16 +27,20 @@ class MatrixConversionsTest extends FlatSpec with Matchers {
   "RowGroupReducer.calculateSlices" should "return correct slicing ranges" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
-
-    val rowGroupReducer1 = new RowGroupReducer(3, 3, 8, 8)
+    val blockMapper1 = new BlockMapper(8, 8, 3, 3)
+    val rowGroupReducer1 = new RowGroupReducer(blockMapper1)
 
     rowGroupReducer1.calculateSlices() shouldBe Seq((0, 2), (3, 5), (6, 7))
 
-    val rowGroupReducer2 = new RowGroupReducer(25, 25, 1000, 1000)
+    val blockMapper2 = new BlockMapper(1000, 1000, 25, 25)
+
+    val rowGroupReducer2 = new RowGroupReducer(blockMapper2)
 
     rowGroupReducer2.calculateSlices().size shouldBe 40
 
-    val rowGroupReducer3 = new RowGroupReducer(22, 22, 1000, 1000)
+
+    val blockMapper3 = new BlockMapper(1000, 1000, 22, 22)
+    val rowGroupReducer3 = new RowGroupReducer(blockMapper3)
 
     rowGroupReducer3.calculateSlices().last shouldBe(990, 999)
 

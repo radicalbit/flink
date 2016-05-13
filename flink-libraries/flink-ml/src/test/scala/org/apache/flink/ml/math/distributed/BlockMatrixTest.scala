@@ -48,13 +48,19 @@ class BlockMatrixTest extends FlatSpec with Matchers with GivenWhenThen {
 
 
   "multiply" should "correctly multiply two matrices" in {
-    bm1.multiply(bm2).toRowMatrix.toCOO.toSet.filter(_._3!=0) shouldBe
+    val result=bm1.multiply(bm2)
+      result.toRowMatrix.toCOO.toSet.filter(_._3!=0) shouldBe
       Set(
         (0, 0, 6.0),
         (1, 0, 2.0),
         (3, 1, 4.0),
         (3, 2, 468.0)
       )
+    result.getNumRows shouldBe 4
+    result.getNumCols shouldBe 4
+    
+
+
   }
 
   "sum" should "correctly sum two matrices" in {
@@ -89,7 +95,8 @@ class BlockMatrixTest extends FlatSpec with Matchers with GivenWhenThen {
     val result = sumBlockMatrix1.sum(sumBlockMatrix2).toRowMatrix.toLocalDenseMatrix
 
     result shouldBe expected.toDenseMatrix
-
+    result.numRows shouldBe sumBlockMatrix1.getNumRows
+    result.numCols shouldBe sumBlockMatrix1.getNumCols
   }
 
 }

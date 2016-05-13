@@ -33,7 +33,8 @@ class BlockMatrixTest extends FlatSpec with Matchers with GivenWhenThen {
     (3, 3, 12.0)
   )
 
-  val bm1 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData), 4, 4).toBlockMatrix(3, 3)
+  val bm1 =
+    DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData), 4, 4).toBlockMatrix(3, 3)
 
   val rawSampleData2 = List(
     (0, 0, 2.0),
@@ -42,7 +43,8 @@ class BlockMatrixTest extends FlatSpec with Matchers with GivenWhenThen {
     (3, 2, 35.0)
   )
 
-  val bm2 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData2), 4, 4).toBlockMatrix(3, 3)
+  val bm2 =
+    DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData2), 4, 4).toBlockMatrix(3, 3)
 
 
   "multiply" should "correctly multiply two matrices" in {
@@ -70,10 +72,12 @@ class BlockMatrixTest extends FlatSpec with Matchers with GivenWhenThen {
       (2, 8, 8.0)
     )
 
-    val sumBlockMatrix1 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum1), 10, 10).toBlockMatrix(5, 5)
-    val sumBlockMatrix2 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum2), 10, 10).toBlockMatrix(5, 5)
+    val sumBlockMatrix1 =
+      DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum1), 10, 10).toBlockMatrix(5, 5)
+    val sumBlockMatrix2 =
+      DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum2), 10, 10).toBlockMatrix(5, 5)
 
-    val result = SparseMatrix.fromCOO(10, 10,
+    val expected = SparseMatrix.fromCOO(10, 10,
       List(
         (0, 0, 3.0),
         (0, 1, 8.0),
@@ -82,7 +86,9 @@ class BlockMatrixTest extends FlatSpec with Matchers with GivenWhenThen {
         (7, 4, 3.0)
       )
     )
-    sumBlockMatrix1.sum(sumBlockMatrix2).toRowMatrix.toLocalDenseMatrix shouldBe result.toDenseMatrix
+    val result = sumBlockMatrix1.sum(sumBlockMatrix2).toRowMatrix.toLocalDenseMatrix
+
+    result shouldBe expected.toDenseMatrix
 
   }
 

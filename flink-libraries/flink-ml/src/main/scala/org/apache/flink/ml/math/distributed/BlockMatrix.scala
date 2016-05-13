@@ -63,8 +63,9 @@ class BlockMatrix(
 
 
   /**
-   * Perform an operation on pairs of block. Pairs are formed taking matching blocks from the two matrices
-   * that are placed in the same position. A function is then applied to the pair to return a new block.
+   * Perform an operation on pairs of block. Pairs are formed taking
+   * matching blocks from the two matrices that are placed in the same position.
+   * A function is then applied to the pair to return a new block.
    * These blocks are then composed in a new block matrix.
    * @param fun
    * @param other
@@ -75,7 +76,8 @@ class BlockMatrix(
 
     val ev1: TypeInformation[BlockID] = TypeInformation.of(classOf[Int])
 
-    /*Full outer join on blocks. The full outer join is required because of the sparse nature of the matrix.
+    /*Full outer join on blocks. The full outer join is required because of
+    the sparse nature of the matrix.
     Matching blocks may be missing and a block of zeros is used instead.*/
     val processedBlocks = this.getDataset.fullOuterJoin(other.getDataset)
       .where(_._1).equalTo(_._1)(ev1) {
@@ -109,12 +111,16 @@ class BlockMatrix(
    * @return
    */
   def sum(other: BlockMatrix): BlockMatrix = {
-    val sumFunction: (Block, Block) => Block = (b1: Block, b2: Block) => Block((b1.toBreeze + b2.toBreeze).fromBreeze)
+    val sumFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
+      Block((b1.toBreeze + b2.toBreeze).fromBreeze)
+
     this.blockPairOperation(sumFunction, other)
   }
 
   def subtraction(other: BlockMatrix): BlockMatrix = {
-    val subFunction: (Block, Block) => Block = (b1: Block, b2: Block) => Block((b1.toBreeze - b2.toBreeze).fromBreeze)
+    val subFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
+      Block((b1.toBreeze - b2.toBreeze).fromBreeze)
+
     this.blockPairOperation(subFunction, other)
   }
 
@@ -135,9 +141,6 @@ class BlockMatrix(
     val groupedBlocks = joinedBlocks.groupBy(x => (x._1._1, x._2._2))
 
     val reducedBlocks = groupedBlocks.reduceGroup(new GroupMultiplyReduction(blockMapper))
-
-
-
 
 
     new BlockMatrix(reducedBlocks,
@@ -193,7 +196,8 @@ class MapToBlockID(blockMapper: BlockMapper) extends MapFunction[(Int, Int, Bloc
  * MapFunction that converts from BlockID to mapped coordinates using a BlockMapper.
  * @param blockMapper
  */
-class MapToMappedCoord(blockMapper: BlockMapper) extends MapFunction[(Int, Block), (Int, Int, Block)] {
+class MapToMappedCoord(blockMapper: BlockMapper)
+  extends MapFunction[(Int, Block), (Int, Int, Block)] {
   override def map(value: (BlockID, Block)): (Int, Int, Block) = {
     val (i, j) = blockMapper.getBlockMappedCoordinates(value._1)
     (i, j, value._2)
@@ -202,6 +206,7 @@ class MapToMappedCoord(blockMapper: BlockMapper) extends MapFunction[(Int, Block
 
 /**
  * GroupReduce function used in the conversion to row matrix format.
+ * Taken a list of blocks on the same row, it then returns a list of IndexedRows.
  * @param blockMapper
  */
 class ToRowMatrixReducer(blockMapper: BlockMapper)
@@ -210,26 +215,35 @@ class ToRowMatrixReducer(blockMapper: BlockMapper)
   override def reduce(values: lang.Iterable[(Int, Int, Block)],
                       out: Collector[IndexedRow]): Unit = {
     val blockGroup = values.toList
+
     require(blockGroup.nonEmpty)
+
     val groupRow = blockGroup.head._1
+
     //all blocks must have the same row
     require(blockGroup.forall(block => block._1 == groupRow))
+
     //map every block to its mapped column
-    val groupElements = blockGroup.map(block=>(block._2,block._3) )
-    //sort by column
-    .sortBy(_._1)
-    //unpack values
-    .flatMap(
-        block=>
+    val groupElements = blockGroup.map(x => (x._2, x._3)).sortBy(_._1)
+      .flatMap(
+        block => {
 
-        //map coordinates from block space to original space
-          block._2.getBlockData.toIterator.filter(_._3!=0)map(element=>{
-          val (i,j,value)=element
+          //map coordinates from block space to original space
+          block._2.getBlockData.toIterator.filter(_._3 != 0).map(
+            element => {
+              val (i, j, value) = element
 
-          (i+(groupRow*blockMapper.rowsPerBlock),j+block._1*blockMapper.colsPerBlock,value)
-          })
+              //here are calculated the coordinates in the original space for every value
+              (i + (groupRow * blockMapper.rowsPerBlock),
+                j + block._1 * blockMapper.colsPerBlock,
+                value)
+
+            }
           )
+        }
+      )
 
+    //Elements are grouped by row to build an IndexedRow
     groupElements
       .groupBy(_._1)
       .foreach(row => {

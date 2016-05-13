@@ -39,12 +39,12 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
                            numColsOpt: Option[Int] = None)
   extends DistributedMatrix {
 
-  lazy val getNumRows:Int = numRowsOpt match {
+  lazy val getNumRows: Int = numRowsOpt match {
     case Some(rows) => rows
     case None => data.count().toInt
   }
 
-  lazy val getNumCols:Int =
+  lazy val getNumCols: Int =
     numColsOpt match {
       case Some(cols) => cols
       case None => calcCols
@@ -90,8 +90,10 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
 
   def toBlockMatrix(rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
-    require(rowsPerBlock > 0 && colsPerBlock > 0, "Block sizes must be a strictly positive value.")
-    require(rowsPerBlock <= getNumRows && colsPerBlock <= getNumCols, "Blocks can't be bigger than the matrix")
+    require(rowsPerBlock > 0 && colsPerBlock > 0,
+      "Block sizes must be a strictly positive value.")
+    require(rowsPerBlock <= getNumRows && colsPerBlock <= getNumCols,
+      "Blocks can't be bigger than the matrix")
 
     val blockMapper = BlockMapper(getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
 
@@ -156,7 +158,7 @@ case class IndexedRow(rowIndex: Int, values: Vector) extends Ordered[IndexedRow]
 
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
 
-  override def toString:String=s"($rowIndex,${values.toString}"
+  override def toString: String = s"($rowIndex,${values.toString}"
 
 }
 
@@ -166,7 +168,7 @@ case class IndexedRow(rowIndex: Int, values: Vector) extends Ordered[IndexedRow]
  *
  * @param blockMapper
  */
-class RowGroupReducer(blockMapper:BlockMapper)
+class RowGroupReducer(blockMapper: BlockMapper)
   extends RichGroupReduceFunction[IndexedRow, (Int, Block)] {
 
   import org.apache.flink.ml.math.Breeze._

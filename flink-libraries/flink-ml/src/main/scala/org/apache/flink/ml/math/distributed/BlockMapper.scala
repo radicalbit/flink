@@ -21,12 +21,13 @@ package org.apache.flink.ml.math.distributed
 
 /**
  * This class is in charge of handling all the spatial logic required by BlockMatrix.
- * It introduces a new space of zero-indexed coordinates (i,j), called "mapped coordinates". This is a space where
- * blocks are indexed (starting from zero).
+ * It introduces a new space of zero-indexed coordinates (i,j), called "mapped coordinates".
+ * This is a space where blocks are indexed (starting from zero).
  *
- * So every coordinate in the original space can be mapped to this space and to the corrisponding block.
- * A block have a row and a column coordinate that explicits its position.
- * Every set of coordinates in the mapped space corresponds to a square of size rowPerBlock x colsPerBlock.
+ * So every coordinate in the original space can be mapped to this space and to the
+ * corrisponding block.  A block have a row and a column coordinate that explicits
+ * its position. Every set of coordinates in the mapped space corresponds to a square
+ * of size rowPerBlock x colsPerBlock.
  *
  */
 

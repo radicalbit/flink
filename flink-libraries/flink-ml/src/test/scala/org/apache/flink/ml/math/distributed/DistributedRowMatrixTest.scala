@@ -53,7 +53,7 @@ class DistributedRowMatrixTest extends FlatSpec with Matchers{
     val dmatrix=DistributedRowMatrix.fromCOO(rowDataset,3,5)
 
 
-    dmatrix.toCoo.toSet.filter(_._3!=0) shouldBe  rawSampleData.toSet
+    dmatrix.toCOO.toSet.filter(_._3!=0) shouldBe  rawSampleData.toSet
   }
 
 

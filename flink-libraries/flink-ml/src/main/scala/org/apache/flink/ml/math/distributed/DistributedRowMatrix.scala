@@ -39,27 +39,31 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
                            numColsOpt: Option[Int] = None)
   extends DistributedMatrix {
 
-  lazy val getNumRows = numRowsOpt match {
+  lazy val getNumRows:Int = numRowsOpt match {
     case Some(rows) => rows
     case None => data.count().toInt
   }
-  lazy val getNumCols =
+
+  lazy val getNumCols:Int =
     numColsOpt match {
       case Some(cols) => cols
-      case None => getCols
+      case None => calcCols
     }
 
-  val indices = data.map(_.rowIndex)
-  val values = data.map(_.values)
+
   val getRowData = data
 
-  private def getCols: Int =
+  private def calcCols: Int =
     data.first(1).collect().headOption match {
       case Some(vector) => vector.values.size
       case None => 0
     }
 
-  def toCoo: Seq[(Int, Int, Double)] = {
+  /**
+   * Collects the data in the form of a sequence of coordinates associated with their values.
+   * @return
+   */
+  def toCOO: Seq[(Int, Int, Double)] = {
 
     val localRows = data.collect()
 
@@ -70,10 +74,12 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
   }
 
+  /**
+   * Collects the data in the form of a SparseMatrix
+   * @return
+   */
   def toLocalSparseMatrix: SparseMatrix = {
-
-
-    val localMatrix = SparseMatrix.fromCOO(this.getNumRows, this.getNumCols, this.toCoo)
+    val localMatrix = SparseMatrix.fromCOO(this.getNumRows, this.getNumCols, this.toCOO)
     require(localMatrix.numRows == this.getNumRows)
     require(localMatrix.numCols == this.getNumCols)
     localMatrix
@@ -87,9 +93,9 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     require(rowsPerBlock > 0 && colsPerBlock > 0, "Block sizes must be a strictly positive value.")
     require(rowsPerBlock <= getNumRows && colsPerBlock <= getNumCols, "Blocks can't be bigger than the matrix")
 
-    val rowGroupReducer = new RowGroupReducer(rowsPerBlock, colsPerBlock, getNumRows, getNumCols)
-
     val blockMapper = BlockMapper(getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
+
+    val rowGroupReducer = new RowGroupReducer(blockMapper)
 
     val blocks = data
       .groupBy(row => blockMapper.absCoordToMappedCoord(row.rowIndex, 0)._1)
@@ -147,22 +153,28 @@ object DistributedRowMatrix {
 }
 
 case class IndexedRow(rowIndex: Int, values: Vector) extends Ordered[IndexedRow] {
+
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
 
   override def toString:String=s"($rowIndex,${values.toString}"
 
 }
 
-class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCols: Int)
+/**
+ * Serializable Reduction function used by the toBlockMatrix function. Takes an ordered list of
+ * indexed row and split those rows to form blocks.
+ *
+ * @param blockMapper
+ */
+class RowGroupReducer(blockMapper:BlockMapper)
   extends RichGroupReduceFunction[IndexedRow, (Int, Block)] {
 
   import org.apache.flink.ml.math.Breeze._
 
   override def reduce(values: lang.Iterable[IndexedRow], out: Collector[(Int, Block)]): Unit = {
-    val blockMapper = BlockMapper(numRows, numCols, rowsPerBlock, colsPerBlock)
 
     val sortedRows = values.toList.sorted
-    require(sortedRows.max.rowIndex - sortedRows.min.rowIndex <= rowsPerBlock)
+    require(sortedRows.max.rowIndex - sortedRows.min.rowIndex <= blockMapper.rowsPerBlock)
     val slicesWithIndex: List[((Int, Int), Int)] = calculateSlices().zipWithIndex
 
     val splitRows: List[(Int, Int, Vector)] =
@@ -195,15 +207,15 @@ class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCol
 
   def calculateSlices(): List[(Int, Int)] =
 
-    (0 to (math.ceil(numCols * 1.0 / colsPerBlock) - 1).toInt)
+    (0 to (math.ceil(blockMapper.numCols * 1.0 / blockMapper.colsPerBlock) - 1).toInt)
       .map(
         x => {
 
-          val start = x * colsPerBlock
+          val start = x * blockMapper.colsPerBlock
 
-          val endT = (x + 1) * colsPerBlock - 1
-          val end = if (endT > numCols - 1) {
-            numCols - 1
+          val endT = (x + 1) * blockMapper.colsPerBlock - 1
+          val end = if (endT > blockMapper.numCols - 1) {
+            blockMapper.numCols - 1
           }
           else {
             endT
@@ -222,7 +234,7 @@ class RowGroupReducer(rowsPerBlock: Int, colsPerBlock: Int, numRows: Int, numCol
       val (rowIndex, mappedColIndex, vector) = blockPart
       for {
         (colIndex, value) <- vector.iterator
-      } yield (rowIndex % rowsPerBlock, colIndex, value)
+      } yield (rowIndex % blockMapper.rowsPerBlock, colIndex, value)
 
     })
 

@@ -22,7 +22,7 @@ package org.apache.flink.ml.math.distributed
 import java.lang
 
 import org.apache.flink.api.common.functions.{MapFunction, RichGroupReduceFunction, RichMapFunction}
-import org.apache.flink.api.common.typeinfo.{TypeHint, IntegerTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala.{createTypeInformation, _}
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.SparseVector
@@ -50,7 +50,11 @@ class BlockMatrix(
 
   val getNumBlocks = blockMapper.numBlocks
 
-
+  /**
+   * Compares the format of two block matrices
+   * @param other
+   * @return
+   */
   def hasSameFormat(other: BlockMatrix): Boolean =
     this.getNumRows == other.getNumRows &&
       this.getNumCols == other.getNumCols &&
@@ -58,9 +62,21 @@ class BlockMatrix(
       this.getColsPerBlock == other.getColsPerBlock
 
 
+  /**
+   * Perform an operation on pairs of block. Pairs are formed taking matching blocks from the two matrices
+   * that are placed in the same position. A function is then applied to the pair to return a new block.
+   * These blocks are then composed in a new block matrix.
+   * @param fun
+   * @param other
+   * @return
+   */
   def blockPairOperation(fun: (Block, Block) => Block, other: BlockMatrix): BlockMatrix = {
     require(hasSameFormat(other))
+
     val ev1: TypeInformation[BlockID] = TypeInformation.of(classOf[Int])
+
+    /*Full outer join on blocks. The full outer join is required because of the sparse nature of the matrix.
+    Matching blocks may be missing and a block of zeros is used instead.*/
     val processedBlocks = this.getDataset.fullOuterJoin(other.getDataset)
       .where(_._1).equalTo(_._1)(ev1) {
       (left: (BlockID, Block), right: (BlockID, Block)) => {
@@ -87,11 +103,15 @@ class BlockMatrix(
     new BlockMatrix(processedBlocks, blockMapper)
   }
 
+  /**
+   * Sum two matrices.
+   * @param other
+   * @return
+   */
   def sum(other: BlockMatrix): BlockMatrix = {
     val sumFunction: (Block, Block) => Block = (b1: Block, b2: Block) => Block((b1.toBreeze + b2.toBreeze).fromBreeze)
     this.blockPairOperation(sumFunction, other)
   }
-
 
   def subtraction(other: BlockMatrix): BlockMatrix = {
     val subFunction: (Block, Block) => Block = (b1: Block, b2: Block) => Block((b1.toBreeze - b2.toBreeze).fromBreeze)
@@ -141,6 +161,7 @@ class BlockMatrix(
   }
 
 
+
   def toRowMatrix: DistributedRowMatrix = {
     val indexedRows = data
     //map id to mapped coordinates
@@ -165,6 +186,11 @@ object BlockMatrix {
 
 }
 
+
+/**
+ * MapFunction that converts from mapped coordinates to BlockID using a BlockMapper.
+ * @param blockMapper
+ */
 class MapToBlockID(blockMapper: BlockMapper) extends MapFunction[(Int, Int, Block), (Int, Block)] {
   override def map(block: (BlockID, BlockID, Block)): (BlockID, Block) = {
 
@@ -174,6 +200,10 @@ class MapToBlockID(blockMapper: BlockMapper) extends MapFunction[(Int, Int, Bloc
   }
 }
 
+/**
+ * MapFunction that converts from BlockID to mapped coordinates using a BlockMapper.
+ * @param blockMapper
+ */
 class MapToMappedCoord(blockMapper: BlockMapper) extends MapFunction[(Int, Block), (Int, Int, Block)] {
   override def map(value: (BlockID, Block)): (Int, Int, Block) = {
     val (i, j) = blockMapper.getBlockMappedCoordinates(value._1)
@@ -181,18 +211,10 @@ class MapToMappedCoord(blockMapper: BlockMapper) extends MapFunction[(Int, Block
   }
 }
 
-
-class MultiplyMapper(blockMapper: BlockMapper)
-  extends RichMapFunction[((Int, Int, Block), (Int, Int, Block)), (Int, Int, Int, Block)] {
-
-  override def map(value: ((Int, Int, Block), (Int, Int, Block))): (Int, Int, Int, Block) = {
-    val ((i, j, left), (s, t, right)) = value
-
-    require(j == s, s"Block rows and column must match $j - $s")
-    (j, i, t, left.multiply(right))
-  }
-}
-
+/**
+ * GroupReduce function used in the conversion to row matrix format.
+ * @param blockMapper
+ */
 class ToRowMatrixReducer(blockMapper: BlockMapper) extends RichGroupReduceFunction[
   (Int, Int, Block), IndexedRow] {
   override def reduce(
@@ -232,3 +254,17 @@ val (i,j,value)=element
   }
 
 }
+
+
+
+class MultiplyMapper(blockMapper: BlockMapper)
+  extends RichMapFunction[((Int, Int, Block), (Int, Int, Block)), (Int, Int, Int, Block)] {
+
+  override def map(value: ((Int, Int, Block), (Int, Int, Block))): (Int, Int, Int, Block) = {
+    val ((i, j, left), (s, t, right)) = value
+
+    require(j == s, s"Block rows and column must match $j - $s")
+    (j, i, t, left.multiply(right))
+  }
+}
+

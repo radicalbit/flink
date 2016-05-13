@@ -31,7 +31,7 @@ import org.apache.flink.util.Collector
 
 import scala.collection.JavaConversions._
 
-//TODO: test EVERYTHING
+
 class BlockMatrix(
                    data: DataSet[(BlockID, Block)],
                    blockMapper: BlockMapper
@@ -52,7 +52,6 @@ class BlockMatrix(
 
   /**
    * Compares the format of two block matrices
-   * @param other
    * @return
    */
   def hasSameFormat(other: BlockMatrix): Boolean =
@@ -67,9 +66,6 @@ class BlockMatrix(
    * matching blocks from the two matrices that are placed in the same position.
    * A function is then applied to the pair to return a new block.
    * These blocks are then composed in a new block matrix.
-   * @param fun
-   * @param other
-   * @return
    */
   def blockPairOperation(fun: (Block, Block) => Block, other: BlockMatrix): BlockMatrix = {
     require(hasSameFormat(other))
@@ -107,7 +103,6 @@ class BlockMatrix(
 
   /**
    * Sum two matrices.
-   * @param other
    * @return
    */
   def sum(other: BlockMatrix): BlockMatrix = {
@@ -124,29 +119,56 @@ class BlockMatrix(
     this.blockPairOperation(subFunction, other)
   }
 
-  //TODO: broken
+  /**
+   * Multiplies two block matrices of the same format.
+   * The matrix passed as a paremeter is used as right operand.
+   */
   def multiply(other: BlockMatrix): BlockMatrix = {
 
+    /*
+      The multiplication is done multiplying rows and columns of blocks locally.
+      The two matrices A(r1 x c1) and B(r2 x c2) are divided in blocks:
+      b x c blocks for A and c x d blocks for B.
+
+      The result of the multiplication is the matrix C (r1 x c2) composed of b x d blocks.
+      This matrix is computed using the following formula:
+
+      C_xy=SUM_i(A_xi * B_iy)
+
+      where x, i and y are coordinates in the mapped space, A_rc and B_rc are blocks.
+
+      So we proceed grouping pair of blocks according to their mapped coordinates,
+      multiply the pairs and sum (reduction) them to obtain the block at the coord xy.
+
+
+     */
+
+    //Checking that the two matrices are compatible for multiplication.
     require(this.getBlockCols == other.getBlockRows)
     require(this.getColsPerBlock == other.getColsPerBlock)
     require(this.getRowsPerBlock == other.getRowsPerBlock)
 
+    /*BlockID is converted to mapped coordinates that will be required to
+      group blocks together.*/
     val otherWithCoord = other.getDataset.map(new MapToMappedCoord(blockMapper))
 
     val dataWithCoord = data.map(
       new MapToMappedCoord(blockMapper))
 
+    //here we join pairs of blocks to be multiplied...
     val joinedBlocks = dataWithCoord.join(otherWithCoord).where(1).equalTo(0)
 
+    //... and group them by the row of the first block and the column of the second block.
     val groupedBlocks = joinedBlocks.groupBy(x => (x._1._1, x._2._2))
 
+    //here all the pairs in the group are multiplied and then reduced with a sum
     val reducedBlocks = groupedBlocks.reduceGroup(new GroupMultiplyReduction(blockMapper))
 
-
+    //Finally a new block matrix is built.
     new BlockMatrix(reducedBlocks,
 
-      BlockMapper(other.getNumRows,
-        this.getNumCols,
+      BlockMapper(this.getNumRows,
+        other.getNumCols,
         this.blockMapper.rowsPerBlock,
         this.blockMapper.colsPerBlock
       )
@@ -178,23 +200,8 @@ object BlockMatrix {
 
 }
 
-
-/**
- * MapFunction that converts from mapped coordinates to BlockID using a BlockMapper.
- * @param blockMapper
- */
-class MapToBlockID(blockMapper: BlockMapper) extends MapFunction[(Int, Int, Block), (Int, Block)] {
-  override def map(block: (BlockID, BlockID, Block)): (BlockID, Block) = {
-
-    val blockID = blockMapper.getBlockIdByCoordinates(block._1, block._2)
-
-    (block._1, block._3)
-  }
-}
-
 /**
  * MapFunction that converts from BlockID to mapped coordinates using a BlockMapper.
- * @param blockMapper
  */
 class MapToMappedCoord(blockMapper: BlockMapper)
   extends MapFunction[(Int, Block), (Int, Int, Block)] {
@@ -207,7 +214,6 @@ class MapToMappedCoord(blockMapper: BlockMapper)
 /**
  * GroupReduce function used in the conversion to row matrix format.
  * Taken a list of blocks on the same row, it then returns a list of IndexedRows.
- * @param blockMapper
  */
 class ToRowMatrixReducer(blockMapper: BlockMapper)
   extends RichGroupReduceFunction[(Int, Int, Block), IndexedRow] {
@@ -269,7 +275,7 @@ class GroupMultiplyReduction(blockMapper: BlockMapper)
 
     val res = multipliedGroups.reduce(
       (l, r) => {
-        val ((i, j, left), (s, t, right)) = (l, r)
+        val ((i, j, left), (_, _, right)) = (l, r)
 
         (i, j, left.sum(right))
 

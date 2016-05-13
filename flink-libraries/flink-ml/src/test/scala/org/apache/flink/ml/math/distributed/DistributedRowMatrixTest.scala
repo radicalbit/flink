@@ -19,7 +19,6 @@
 package org.apache.flink.ml.math.distributed
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.math.SparseVector
 import org.scalatest.{Matchers, FlatSpec}
 
 class DistributedRowMatrixTest extends FlatSpec with Matchers{

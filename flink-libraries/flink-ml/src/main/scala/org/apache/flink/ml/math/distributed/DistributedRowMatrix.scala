@@ -30,7 +30,6 @@ import scala.collection.JavaConversions._
 
 /**
  *
- * @param data
  * @param numRowsOpt If None, will be calculated from the DataSet.
  * @param numColsOpt If None, will be calculated from the DataSet.
  */
@@ -117,9 +116,6 @@ object DistributedRowMatrix {
 
   /**
    * Builds a DistributedRowMatrix from a dataset in COO
-   * @param data
-   * @param numRows
-   * @param numCols
    * @param isSorted If false, sorts the row to properly build the matrix representation.
    *                 If already sorted, set this parameter to true to skip sorting.
    * @return
@@ -140,7 +136,7 @@ object DistributedRowMatrix {
           else {
             sparseRow.toList.sortBy(row => row._2)
           }
-        val (indices, values) = sortedRow.map(x => (x._2, x._3)).toList.unzip
+        val (indices, values) = sortedRow.map(x => (x._2, x._3)).unzip
         (sortedRow.head._1, SparseVector(numCols, indices.toArray, values.toArray))
       }
       )
@@ -165,8 +161,6 @@ case class IndexedRow(rowIndex: Int, values: Vector) extends Ordered[IndexedRow]
 /**
  * Serializable Reduction function used by the toBlockMatrix function. Takes an ordered list of
  * indexed row and split those rows to form blocks.
- *
- * @param blockMapper
  */
 class RowGroupReducer(blockMapper: BlockMapper)
   extends RichGroupReduceFunction[IndexedRow, (Int, Block)] {

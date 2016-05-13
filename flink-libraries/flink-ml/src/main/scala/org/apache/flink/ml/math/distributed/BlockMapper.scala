@@ -35,6 +35,8 @@ case class BlockMapper(//original matrix size
                        //block size
                         rowsPerBlock: Int, colsPerBlock: Int
                         ) {
+
+  require(numRows>=rowsPerBlock && numCols>=colsPerBlock)
   val numBlockRows: Int = math.ceil(numRows * 1.0 / rowsPerBlock).toInt
   val numBlockCols: Int = math.ceil(numCols * 1.0 / colsPerBlock).toInt
   val numBlocks = numBlockCols * numBlockRows

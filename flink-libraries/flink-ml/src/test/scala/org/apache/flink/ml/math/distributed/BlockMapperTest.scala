@@ -22,22 +22,17 @@ import org.scalatest.{FlatSpec, GivenWhenThen, Matchers}
 
 class BlockMapperTest extends FlatSpec with Matchers with GivenWhenThen {
 
-
   val simpleMapper = BlockMapper(90, 60, 12, 7)
-
 
   "getBlockId" should "return a valid blockId" in {
     Given("valid block coordinates")
 
     val verySimpleMapper = BlockMapper(4, 4, 2, 2)
 
-
     simpleMapper.getBlockIdByCoordinates(0, 0) shouldBe 0
     simpleMapper.getBlockIdByCoordinates(37, 24) shouldBe 30
     simpleMapper.getBlockIdByCoordinates(89, 59) shouldBe simpleMapper.numBlocks - 1
-
   }
-
 
   it should "throw an exception" in {
     Given("invalid coordinates")
@@ -62,13 +57,13 @@ class BlockMapperTest extends FlatSpec with Matchers with GivenWhenThen {
   "getBlockCoordinates" should "return valid coordinates" in {
     Given("a valid block id")
 
-    simpleMapper.getBlockMappedCoordinates(3) shouldBe(0, 3)
-    simpleMapper.getBlockMappedCoordinates(0) shouldBe(0, 0)
-    simpleMapper.getBlockMappedCoordinates(9) shouldBe(1, 0)
-    simpleMapper.getBlockMappedCoordinates(10) shouldBe(1, 1)
-    simpleMapper.getBlockMappedCoordinates(15) shouldBe(1, 6)
-    simpleMapper.getBlockMappedCoordinates(48) shouldBe(5, 3)
-    simpleMapper.getBlockMappedCoordinates(70) shouldBe(7, 7)
+    simpleMapper.getBlockMappedCoordinates(3) shouldBe (0, 3)
+    simpleMapper.getBlockMappedCoordinates(0) shouldBe (0, 0)
+    simpleMapper.getBlockMappedCoordinates(9) shouldBe (1, 0)
+    simpleMapper.getBlockMappedCoordinates(10) shouldBe (1, 1)
+    simpleMapper.getBlockMappedCoordinates(15) shouldBe (1, 6)
+    simpleMapper.getBlockMappedCoordinates(48) shouldBe (5, 3)
+    simpleMapper.getBlockMappedCoordinates(70) shouldBe (7, 7)
   }
   it should "throw an exception" in {
     Given("a non valid blockId")
@@ -80,16 +75,11 @@ class BlockMapperTest extends FlatSpec with Matchers with GivenWhenThen {
     }
   }
 
-
-
   "BlockMapper constructor" should "create a valid BlockMapper" in {
 
     Given("valid parameters")
     val mapper = BlockMapper(200, 60, 64, 7)
     mapper.numBlockRows shouldBe 4
     mapper.numBlockCols shouldBe 9
-
-
   }
-
 }

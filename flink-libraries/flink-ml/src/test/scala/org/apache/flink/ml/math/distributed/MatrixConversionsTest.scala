@@ -38,65 +38,70 @@ class MatrixConversionsTest extends FlatSpec with Matchers {
 
     rowGroupReducer2.calculateSlices().size shouldBe 40
 
-
     val blockMapper3 = new BlockMapper(1000, 1000, 22, 22)
     val rowGroupReducer3 = new RowGroupReducer(blockMapper3)
 
-    rowGroupReducer3.calculateSlices().last shouldBe(990, 999)
-
+    rowGroupReducer3.calculateSlices().last shouldBe (990, 999)
   }
   "DistributedRowMatrix.toBlockMatrix" should "preserve the matrix structure after conversion" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val rawSampleData = List(
-      (0, 0, 3.0),
-      (0, 1, 1.0),
-      (0, 3, 4.0),
-      (2, 3, 60.0),
-      (1, 2, 50.0),
-      (1, 1, 12.0),
-      (2, 1, 14.0),
-      (3, 2, 18.0)
+        (0, 0, 3.0),
+        (0, 1, 1.0),
+        (0, 3, 4.0),
+        (2, 3, 60.0),
+        (1, 2, 50.0),
+        (1, 1, 12.0),
+        (2, 1, 14.0),
+        (3, 2, 18.0)
     )
-
 
     val d1 = DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData), 4, 4)
     val blockMatrix = d1.toBlockMatrix(2, 2).getDataset.collect
 
-    val block0 = Block.apply(SparseMatrix.fromCOO(2, 2, List(
-      (0, 0, 3.0),
-      (1, 0, 0.0),
-      (0, 1, 1.0),
-      (1, 1, 12.0)
-    )))
+    val block0 = Block.apply(
+        SparseMatrix.fromCOO(2,
+                             2,
+                             List(
+                                 (0, 0, 3.0),
+                                 (1, 0, 0.0),
+                                 (0, 1, 1.0),
+                                 (1, 1, 12.0)
+                             )))
 
-    val block1 = Block.apply(SparseMatrix.fromCOO(2, 2, List(
-      (0, 0, 0.0),
-      (1, 0, 50.0),
-      (0, 1, 4.0),
-      (1, 1, 0.0)
-    )))
+    val block1 = Block.apply(
+        SparseMatrix.fromCOO(2,
+                             2,
+                             List(
+                                 (0, 0, 0.0),
+                                 (1, 0, 50.0),
+                                 (0, 1, 4.0),
+                                 (1, 1, 0.0)
+                             )))
 
-    val block2 = Block.apply(SparseMatrix.fromCOO(2, 2, List(
-      (0, 0, 0.0),
-      (1, 0, 0.0),
-      (0, 1, 14.0),
-      (1, 1, 0.0)
-    )))
+    val block2 = Block.apply(
+        SparseMatrix.fromCOO(2,
+                             2,
+                             List(
+                                 (0, 0, 0.0),
+                                 (1, 0, 0.0),
+                                 (0, 1, 14.0),
+                                 (1, 1, 0.0)
+                             )))
 
-    val block3 = Block.apply(SparseMatrix.fromCOO(2, 2, List(
-      (0, 0, 0.0),
-      (1, 0, 18.0),
-      (0, 1, 60.0),
-      (1, 1, 0.0)
-    )))
+    val block3 = Block.apply(
+        SparseMatrix.fromCOO(2,
+                             2,
+                             List(
+                                 (0, 0, 0.0),
+                                 (1, 0, 18.0),
+                                 (0, 1, 60.0),
+                                 (1, 1, 0.0)
+                             )))
 
-    blockMatrix.toSet shouldBe Set((0, block0),
-      (1, block1),
-      (2, block2),
-      (3, block3))
+    blockMatrix.toSet shouldBe Set((0, block0), (1, block1), (2, block2), (3, block3))
 
-
-    val data2 = (39, 39, 123.0) ::(5, 30, 42.0) :: rawSampleData
+    val data2 = (39, 39, 123.0) :: (5, 30, 42.0) :: rawSampleData
     val d2 = DistributedRowMatrix.fromCOO(env.fromCollection(data2), 40, 40)
     val blockMatrix2 = d2.toBlockMatrix(3, 20)
     val dataMap = blockMatrix2.getDataset.collect().toMap
@@ -107,53 +112,62 @@ class MatrixConversionsTest extends FlatSpec with Matchers {
 
     d2.getNumCols shouldBe blockMatrix2.getNumCols
     d2.getNumRows shouldBe blockMatrix2.getNumRows
-
   }
 
   "BlockMatrix.toRowMatrix" should "preserve the matrix structure after conversion" in {
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val block0 = Block.apply(SparseMatrix.fromCOO(2, 2, List(
-      (0, 0, 3.0),
-      (1, 0, 0.0),
-      (0, 1, 1.0),
-      (1, 1, 12.0)
-    )))
+    val block0 = Block.apply(
+        SparseMatrix.fromCOO(2,
+                             2,
+                             List(
+                                 (0, 0, 3.0),
+                                 (1, 0, 0.0),
+                                 (0, 1, 1.0),
+                                 (1, 1, 12.0)
+                             )))
 
-    val block1 = Block.apply(SparseMatrix.fromCOO(2, 2, List(
-      (0, 0, 0.0),
-      (1, 0, 50.0),
-      (0, 1, 4.0),
-      (1, 1, 0.0)
-    )))
+    val block1 = Block.apply(
+        SparseMatrix.fromCOO(2,
+                             2,
+                             List(
+                                 (0, 0, 0.0),
+                                 (1, 0, 50.0),
+                                 (0, 1, 4.0),
+                                 (1, 1, 0.0)
+                             )))
 
-    val block2 = Block.apply(SparseMatrix.fromCOO(2, 2, List(
-      (0, 0, 0.0),
-      (1, 0, 0.0),
-      (0, 1, 14.0),
-      (1, 1, 0.0)
-    )))
+    val block2 = Block.apply(
+        SparseMatrix.fromCOO(2,
+                             2,
+                             List(
+                                 (0, 0, 0.0),
+                                 (1, 0, 0.0),
+                                 (0, 1, 14.0),
+                                 (1, 1, 0.0)
+                             )))
 
-    val block3 = Block.apply(SparseMatrix.fromCOO(2, 2, List(
-      (0, 0, 0.0),
-      (1, 0, 18.0),
-      (0, 1, 60.0),
-      (1, 1, 0.0)
-    )))
+    val block3 = Block.apply(
+        SparseMatrix.fromCOO(2,
+                             2,
+                             List(
+                                 (0, 0, 0.0),
+                                 (1, 0, 18.0),
+                                 (0, 1, 60.0),
+                                 (1, 1, 0.0)
+                             )))
 
     val blockMatrix = new BlockMatrix(env.fromElements(
-      (0, block0),
-      (1, block1),
-      (2, block2),
-      (3, block3)
-    ), new BlockMapper(4, 4, 2, 2))
-
-
+                                          (0, block0),
+                                          (1, block1),
+                                          (2, block2),
+                                          (3, block3)
+                                      ),
+                                      new BlockMapper(4, 4, 2, 2))
 
     blockMatrix.toRowMatrix.getRowData.collect() shouldBe List(
-      IndexedRow(1, SparseVector.fromCOO(4, List((1, 12.0), (2, 50.0)))),
-      IndexedRow(0, SparseVector.fromCOO(4, List((0, 3.0), (1, 1.0),  (3, 4.0)))),
-      IndexedRow(2, SparseVector.fromCOO(4, List((1, 14.0), (3, 60.0)))),
-      IndexedRow(3, SparseVector.fromCOO(4, List((2, 18.0)))))
-
+        IndexedRow(1, SparseVector.fromCOO(4, List((1, 12.0), (2, 50.0)))),
+        IndexedRow(0, SparseVector.fromCOO(4, List((0, 3.0), (1, 1.0), (3, 4.0)))),
+        IndexedRow(2, SparseVector.fromCOO(4, List((1, 14.0), (3, 60.0)))),
+        IndexedRow(3, SparseVector.fromCOO(4, List((2, 18.0)))))
   }
 }

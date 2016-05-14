@@ -18,54 +18,50 @@
 
 package org.apache.flink.ml.math.distributed
 
-
 /**
- * This class is in charge of handling all the spatial logic required by BlockMatrix.
- * It introduces a new space of zero-indexed coordinates (i,j), called "mapped coordinates".
- * This is a space where blocks are indexed (starting from zero).
- *
- * So every coordinate in the original space can be mapped to this space and to the
- * corrisponding block.  A block have a row and a column coordinate that explicits
- * its position. Every set of coordinates in the mapped space corresponds to a square
- * of size rowPerBlock x colsPerBlock.
- *
- */
-
-case class BlockMapper(//original matrix size
-                       numRows: Int,  numCols: Int,
+  * This class is in charge of handling all the spatial logic required by BlockMatrix.
+  * It introduces a new space of zero-indexed coordinates (i,j), called "mapped coordinates".
+  * This is a space where blocks are indexed (starting from zero).
+  *
+  * So every coordinate in the original space can be mapped to this space and to the
+  * corrisponding block.  A block have a row and a column coordinate that explicits
+  * its position. Every set of coordinates in the mapped space corresponds to a square
+  * of size rowPerBlock x colsPerBlock.
+  *
+  */
+case class BlockMapper( //original matrix size
+                       numRows: Int,
+                       numCols: Int,
                        //block size
-                        rowsPerBlock: Int, colsPerBlock: Int
-                        ) {
+                       rowsPerBlock: Int,
+                       colsPerBlock: Int) {
 
-  require(numRows>=rowsPerBlock && numCols>=colsPerBlock)
+  require(numRows >= rowsPerBlock && numCols >= colsPerBlock)
   val numBlockRows: Int = math.ceil(numRows * 1.0 / rowsPerBlock).toInt
   val numBlockCols: Int = math.ceil(numCols * 1.0 / colsPerBlock).toInt
   val numBlocks = numBlockCols * numBlockRows
 
-
   /**
-   * Translates absolute coordinates to the mapped coordinates of the block
-   * these coordinates belong to.
-   * @param i
-   * @param j
-   * @return
-   */
+    * Translates absolute coordinates to the mapped coordinates of the block
+    * these coordinates belong to.
+    * @param i
+    * @param j
+    * @return
+    */
   def absCoordToMappedCoord(i: Int, j: Int): (Int, Int) =
     getBlockMappedCoordinates(getBlockIdByCoordinates(i, j))
 
   /**
-   * Retrieves a block id from original coordinates
-   * @param i Original row
-   * @param j Original column
-   * @return Block ID
-   */
+    * Retrieves a block id from original coordinates
+    * @param i Original row
+    * @param j Original column
+    * @return Block ID
+    */
   def getBlockIdByCoordinates(i: Int, j: Int): Int = {
 
     if (i < 0 || j < 0 || i >= numRows || j >= numCols) {
       throw new IllegalArgumentException(s"Invalid coordinates ($i,$j).")
-    }
-
-    else {
+    } else {
       val mappedRow = i / rowsPerBlock
       val mappedColumn = j / colsPerBlock
       val res = mappedRow * numBlockCols + mappedColumn
@@ -76,18 +72,16 @@ case class BlockMapper(//original matrix size
   }
 
   /**
-   * Retrieves mapped coordinates for a given block.
-   * @param blockId
-   * @return
-   */
+    * Retrieves mapped coordinates for a given block.
+    * @param blockId
+    * @return
+    */
   def getBlockMappedCoordinates(blockId: Int): (Int, Int) = {
     if (blockId < 0 || blockId > numBlockCols * numBlockRows) {
       throw new IllegalArgumentException(
-        s"BlockId numeration starts from 0. $blockId is not a valid Id"
+          s"BlockId numeration starts from 0. $blockId is not a valid Id"
       )
-    }
-
-    else {
+    } else {
       val i = blockId / numBlockCols
       val j = blockId % numBlockCols
       (i, j)
@@ -95,22 +89,17 @@ case class BlockMapper(//original matrix size
   }
 
   /**
-   * Retrieves the ID of the block at the given coordinates
-   * @param i
-   * @param j
-   * @return
-   */
+    * Retrieves the ID of the block at the given coordinates
+    * @param i
+    * @param j
+    * @return
+    */
   def getBlockIdByMappedCoord(i: Int, j: Int): Int = {
 
     if (i < 0 || j < 0 || i >= numBlockRows || j >= numBlockCols) {
       throw new IllegalArgumentException(s"Invalid coordinates ($i,$j).")
-    }
-
-    else {
+    } else {
       i * numBlockCols + j
     }
-
   }
-
-
 }

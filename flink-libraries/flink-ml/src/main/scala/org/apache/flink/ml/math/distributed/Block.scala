@@ -22,22 +22,19 @@ import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.{Matrix => FlinkMatrix, SparseMatrix}
 
-
 class Block() {
 
   var blockData: FlinkMatrix = null
 
-  def setBlockData (flinkMatrix: FlinkMatrix)= blockData=flinkMatrix
+  def setBlockData(flinkMatrix: FlinkMatrix) = blockData = flinkMatrix
 
-  def getBlockData=blockData
+  def getBlockData = blockData
 
   def toBreeze = blockData.asBreeze
 
   def getCols = blockData.numCols
 
   def getRows = blockData.numRows
-
-
 
   //TODO: evaluate efficiency of conversion to and from Breeze
   def multiply(other: Block) = {
@@ -47,32 +44,30 @@ class Block() {
     Block((blockData.asBreeze * other.toBreeze).fromBreeze)
   }
 
+  def sum(other: Block) =
+    Block((blockData.asBreeze + other.toBreeze).fromBreeze)
 
-  def sum(other: Block) = Block((blockData.asBreeze + other.toBreeze).fromBreeze)
-
-  override def equals(other:Any)= {
-    other match{
-      case x:Block=>
+  override def equals(other: Any) = {
+    other match {
+      case x: Block =>
         this.blockData.equalsMatrix(x.getBlockData)
-      case _=>false
+      case _ => false
     }
   }
-
 }
 
 object Block {
 
   def apply(data: FlinkMatrix) = {
-    val b=new Block()
+    val b = new Block()
     b.setBlockData(data)
     b
   }
 
-  def zero(rows:Int,cols:Int)={
-    val b=new Block()
-    val zeros=SparseMatrix.fromCOO(rows,cols,List((0,0,0.0)))
+  def zero(rows: Int, cols: Int) = {
+    val b = new Block()
+    val zeros = SparseMatrix.fromCOO(rows, cols, List((0, 0, 0.0)))
     b.setBlockData(zeros)
     b
   }
-
 }

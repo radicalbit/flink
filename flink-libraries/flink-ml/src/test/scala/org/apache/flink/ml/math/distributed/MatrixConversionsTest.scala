@@ -150,10 +150,10 @@ class MatrixConversionsTest extends FlatSpec with Matchers {
 
 
     blockMatrix.toRowMatrix.getRowData.collect() shouldBe List(
-      IndexedRow(1, SparseVector.fromCOO(4, List((0, 0.0), (1, 12.0), (2, 50.0), (3, 0.0)))),
-      IndexedRow(0, SparseVector.fromCOO(4, List((0, 3.0), (1, 1.0), (2, 0.0), (3, 4.0)))),
-      IndexedRow(2, SparseVector.fromCOO(4, List((0, 0.0), (1, 14.0), (2, 0.0), (3, 60.0)))),
-      IndexedRow(3, SparseVector.fromCOO(4, List((0, 0.0), (1, 0.0), (2, 18.0), (3, 0.0)))))
+      IndexedRow(1, SparseVector.fromCOO(4, List((1, 12.0), (2, 50.0)))),
+      IndexedRow(0, SparseVector.fromCOO(4, List((0, 3.0), (1, 1.0),  (3, 4.0)))),
+      IndexedRow(2, SparseVector.fromCOO(4, List((1, 14.0), (3, 60.0)))),
+      IndexedRow(3, SparseVector.fromCOO(4, List((2, 18.0)))))
 
   }
 }

@@ -17,8 +17,8 @@
 # limitations under the License.
 ################################################################################
 
-OLD="1.0-SNAPSHOT"
-NEW="1.0.3-rbp-001-SNAPSHOT"
+OLD="1.0.3-rbp-001-SNAPSHOT"
+NEW="1.0.3-rbp-001"
 
 HERE=` basename "$PWD"`
 if [[ "$HERE" != "tools" ]]; then

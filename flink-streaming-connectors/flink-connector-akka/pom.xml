@@ -26,7 +26,7 @@ under the License.
     <parent>
         <artifactId>flink-streaming-connectors</artifactId>
         <groupId>org.apache.flink</groupId>
-        <version>1.0.3-rbp-001-SNAPSHOT</version>
+        <version>1.0.3-rbp-001</version>
         <relativePath>..</relativePath>
     </parent>
 

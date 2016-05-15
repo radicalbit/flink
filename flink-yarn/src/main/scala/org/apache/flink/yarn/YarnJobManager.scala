@@ -461,8 +461,6 @@ class YarnJobManager(
       val hasLogback = new File(s"$currDir/logback.xml").exists()
       val hasLog4j = new File(s"$currDir/log4j.properties").exists()
 
-      val krb5Enabled = flinkConfiguration.getBoolean(ConfigConstants.KRB5_ENABLE, false)
-
       // prepare files to be shipped
       val resources = shipListString.split(",") flatMap {
         pathStr =>

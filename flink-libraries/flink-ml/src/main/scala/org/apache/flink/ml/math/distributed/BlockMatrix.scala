@@ -31,10 +31,10 @@ import org.apache.flink.util.Collector
 import scala.collection.JavaConversions._
 
 class BlockMatrix(
-    data: DataSet[(BlockID, Block)],
-    blockMapper: BlockMapper
-)
-    extends DistributedMatrix {
+                   data: DataSet[(BlockID, Block)],
+                   blockMapper: BlockMapper
+                   )
+  extends DistributedMatrix {
 
   val getDataset = data
 
@@ -50,23 +50,23 @@ class BlockMatrix(
   val getNumBlocks = blockMapper.numBlocks
 
   /**
-    * Compares the format of two block matrices
-    * @return
-    */
+   * Compares the format of two block matrices
+   * @return
+   */
   def hasSameFormat(other: BlockMatrix): Boolean =
     this.getNumRows == other.getNumRows &&
-    this.getNumCols == other.getNumCols &&
-    this.getRowsPerBlock == other.getRowsPerBlock &&
-    this.getColsPerBlock == other.getColsPerBlock
+      this.getNumCols == other.getNumCols &&
+      this.getRowsPerBlock == other.getRowsPerBlock &&
+      this.getColsPerBlock == other.getColsPerBlock
 
   /**
-    * Perform an operation on pairs of block. Pairs are formed taking
-    * matching blocks from the two matrices that are placed in the same position.
-    * A function is then applied to the pair to return a new block.
-    * These blocks are then composed in a new block matrix.
-    */
+   * Perform an operation on pairs of block. Pairs are formed taking
+   * matching blocks from the two matrices that are placed in the same position.
+   * A function is then applied to the pair to return a new block.
+   * These blocks are then composed in a new block matrix.
+   */
   def blockPairOperation(
-      fun: (Block, Block) => Block, other: BlockMatrix): BlockMatrix = {
+                          fun: (Block, Block) => Block, other: BlockMatrix): BlockMatrix = {
     require(hasSameFormat(other))
 
     val ev1: TypeInformation[BlockID] = TypeInformation.of(classOf[Int])
@@ -78,34 +78,25 @@ class BlockMatrix(
       .fullOuterJoin(other.getDataset)
       .where(_._1)
       .equalTo(_._1)(ev1) {
-        (left: (BlockID, Block), right: (BlockID, Block)) =>
-          {
+        (left: (BlockID, Block), right: (BlockID, Block)) => {
 
-            val (id1, block1) =
-              if (left == null) {
-                (right._1, Block.zero(right._2.getRows, right._2.getCols))
-              } else {
-                left
-              }
+          val (id1, block1) = Option(left).getOrElse(
+            (right._1, Block.zero(right._2.getRows, right._2.getCols)))
 
-            val (id2, block2) =
-              if (right == null) {
-                (left._1, Block.zero(left._2.getRows, left._2.getCols))
-              } else {
-                right
-              }
+          val (id2, block2) = Option(right).getOrElse(
+            (left._1, Block.zero(left._2.getRows, left._2.getCols)))
 
-            require(id1 == id2)
-            (id1, fun(block1, block2))
-          }
+          require(id1 == id2)
+          (id1, fun(block1, block2))
+        }
       }
     new BlockMatrix(processedBlocks, blockMapper)
   }
 
   /**
-    * Sum two matrices.
-    * @return
-    */
+   * Sum two matrices.
+   * @return
+   */
   def sum(other: BlockMatrix): BlockMatrix = {
     val sumFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
       Block((b1.toBreeze + b2.toBreeze).fromBreeze)
@@ -113,7 +104,7 @@ class BlockMatrix(
     this.blockPairOperation(sumFunction, other)
   }
 
-  def subtraction(other: BlockMatrix): BlockMatrix = {
+  def subtract(other: BlockMatrix): BlockMatrix = {
     val subFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
       Block((b1.toBreeze - b2.toBreeze).fromBreeze)
 
@@ -121,9 +112,9 @@ class BlockMatrix(
   }
 
   /**
-    * Multiplies two block matrices of the same format.
-    * The matrix passed as a paremeter is used as right operand.
-    */
+   * Multiplies two block matrices of the same format.
+   * The matrix passed as a paremeter is used as right operand.
+   */
   def multiply(other: BlockMatrix): BlockMatrix = {
 
     /*
@@ -168,10 +159,10 @@ class BlockMatrix(
 
     //Finally a new block matrix is built.
     new BlockMatrix(reducedBlocks,
-                    BlockMapper(this.getNumRows,
-                                other.getNumCols,
-                                this.blockMapper.rowsPerBlock,
-                                this.blockMapper.colsPerBlock))
+      BlockMapper(this.getNumRows,
+        other.getNumCols,
+        this.blockMapper.rowsPerBlock,
+        this.blockMapper.colsPerBlock))
   }
 
   def toRowMatrix: DistributedRowMatrix = {
@@ -195,14 +186,15 @@ object BlockMatrix {
   class MatrixFormatException(message: String) extends Exception(message)
 
   class WrongMatrixCoordinatesException(message: String)
-      extends Exception(message)
+    extends Exception(message)
+
 }
 
 /**
-  * MapFunction that converts from BlockID to mapped coordinates using a BlockMapper.
-  */
+ * MapFunction that converts from BlockID to mapped coordinates using a BlockMapper.
+ */
 class MapToMappedCoord(blockMapper: BlockMapper)
-    extends MapFunction[(Int, Block), (Int, Int, Block)] {
+  extends MapFunction[(Int, Block), (Int, Int, Block)] {
   override def map(value: (BlockID, Block)): (Int, Int, Block) = {
     val (i, j) = blockMapper.getBlockMappedCoordinates(value._1)
     (i, j, value._2)
@@ -210,11 +202,11 @@ class MapToMappedCoord(blockMapper: BlockMapper)
 }
 
 /**
-  * GroupReduce function used in the conversion to row matrix format.
-  * Taken a list of blocks on the same row, it then returns a list of IndexedRows.
-  */
+ * GroupReduce function used in the conversion to row matrix format.
+ * Taken a list of blocks on the same row, it then returns a list of IndexedRows.
+ */
 class ToRowMatrixReducer(blockMapper: BlockMapper)
-    extends RichGroupReduceFunction[(Int, Int, Block), IndexedRow] {
+  extends RichGroupReduceFunction[(Int, Int, Block), IndexedRow] {
 
   override def reduce(values: lang.Iterable[(Int, Int, Block)],
                       out: Collector[IndexedRow]): Unit = {
@@ -232,57 +224,53 @@ class ToRowMatrixReducer(blockMapper: BlockMapper)
       .map(x => (x._2, x._3))
       .sortBy(_._1)
       .flatMap(
-          block =>
-            {
+        block => {
 
-              //map coordinates from block space to original space
-              block._2.getBlockData.toIterator
-                .filter(_._3 != 0)
-                .map(
-                    element =>
-                      {
-                        val (i, j, value) = element
+          //map coordinates from block space to original space
+          block._2.getBlockData.toIterator
+            .filter(_._3 != 0)
+            .map(
+              element => {
+                val (i, j, value) = element
 
-                        //here are calculated the coordinates in the original space for every value
-                        (i + (groupRow * blockMapper.rowsPerBlock),
-                         j + block._1 * blockMapper.colsPerBlock,
-                         value)
-                    }
-                )
-          }
+                //here are calculated the coordinates in the original space for every value
+                (i + (groupRow * blockMapper.rowsPerBlock),
+                  j + block._1 * blockMapper.colsPerBlock,
+                  value)
+              }
+            )
+        }
       )
 
     //Elements are grouped by row to build an IndexedRow
     groupElements
       .groupBy(_._1)
       .foreach(
-          row =>
-            {
+        row => {
           val cooVector = row._2.map(x => (x._2, x._3))
           out.collect(
-              IndexedRow(row._1,
-                         SparseVector.fromCOO(blockMapper.numCols, cooVector)))
-      })
+            IndexedRow(row._1,
+              SparseVector.fromCOO(blockMapper.numCols, cooVector)))
+        })
   }
 }
 
 class GroupMultiplyReduction(blockMapper: BlockMapper)
-    extends RichGroupReduceFunction[
-        ((Int, Int, Block), (Int, Int, Block)), (BlockID, Block)] {
+  extends RichGroupReduceFunction[
+    ((Int, Int, Block), (Int, Int, Block)), (BlockID, Block)] {
   override def reduce(
-      values: lang.Iterable[((BlockID, Int, Block), (Int, Int, Block))],
-      out: Collector[(BlockID, Block)]): Unit = {
+                       values: lang.Iterable[((BlockID, Int, Block), (Int, Int, Block))],
+                       out: Collector[(BlockID, Block)]): Unit = {
     val multipliedGroups: Seq[(Int, Int, Block)] = values.map {
       case ((i, j, left), (s, t, right)) => (i, t, left.multiply(right))
     }.toSeq
 
     val res = multipliedGroups.reduce(
-        (l, r) =>
-          {
-            val ((i, j, left), (_, _, right)) = (l, r)
+      (l, r) => {
+        val ((i, j, left), (_, _, right)) = (l, r)
 
-            (i, j, left.sum(right))
-        }
+        (i, j, left.sum(right))
+      }
     )
     out.collect((blockMapper.getBlockIdByMappedCoord(res._1, res._2), res._3))
   }

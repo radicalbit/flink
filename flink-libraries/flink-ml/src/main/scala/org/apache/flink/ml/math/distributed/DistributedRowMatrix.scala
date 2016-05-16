@@ -22,21 +22,23 @@ import java.lang
 
 import breeze.linalg.{CSCMatrix => BreezeSparseMatrix, Matrix => BreezeMatrix, Vector => BreezeVector}
 import org.apache.flink.api.common.functions.RichGroupReduceFunction
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.ml.math.distributed.BlockMatrix.BlockID
 import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
 import org.apache.flink.util.Collector
-
+import org.apache.flink.ml.math.Breeze._
 import scala.collection.JavaConversions._
 
 /**
-  *
-  * @param numRowsOpt If None, will be calculated from the DataSet.
-  * @param numColsOpt If None, will be calculated from the DataSet.
-  */
+ *
+ * @param numRowsOpt If None, will be calculated from the DataSet.
+ * @param numColsOpt If None, will be calculated from the DataSet.
+ */
 class DistributedRowMatrix(data: DataSet[IndexedRow],
                            numRowsOpt: Option[Int] = None,
                            numColsOpt: Option[Int] = None)
-    extends DistributedMatrix {
+  extends DistributedMatrix {
 
   lazy val getNumRows: Int = numRowsOpt match {
     case Some(rows) => rows
@@ -57,21 +59,21 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     }
 
   /**
-    * Collects the data in the form of a sequence of coordinates associated with their values.
-    * @return
-    */
+   * Collects the data in the form of a sequence of coordinates associated with their values.
+   * @return
+   */
   def toCOO: Seq[(Int, Int, Double)] = {
 
     val localRows = data.collect()
 
     for (IndexedRow(rowIndex, vector) <- localRows;
-    (columnIndex, value) <- vector) yield (rowIndex, columnIndex, value)
+         (columnIndex, value) <- vector) yield (rowIndex, columnIndex, value)
   }
 
   /**
-    * Collects the data in the form of a SparseMatrix
-    * @return
-    */
+   * Collects the data in the form of a SparseMatrix
+   * @return
+   */
   def toLocalSparseMatrix: SparseMatrix = {
     val localMatrix =
       SparseMatrix.fromCOO(this.getNumRows, this.getNumCols, this.toCOO)
@@ -84,14 +86,14 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
   def toLocalDenseMatrix: DenseMatrix = this.toLocalSparseMatrix.toDenseMatrix
 
   def toBlockMatrix(
-      rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
+                     rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
     require(rowsPerBlock > 0 && colsPerBlock > 0,
-            "Block sizes must be a strictly positive value.")
+      "Block sizes must be a strictly positive value.")
     require(rowsPerBlock <= getNumRows && colsPerBlock <= getNumCols,
-            "Blocks can't be bigger than the matrix")
+      "Blocks can't be bigger than the matrix")
 
     val blockMapper = BlockMapper(
-        getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
+      getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
 
     val rowGroupReducer = new RowGroupReducer(blockMapper)
 
@@ -101,6 +103,41 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
     new BlockMatrix(blocks, blockMapper)
   }
+
+
+  def byRowOperation(fun: (Vector, Vector) => Vector, other: DistributedRowMatrix):
+  DistributedRowMatrix = {
+    val otherData = other.getRowData
+    require(this.getNumCols==other.getNumCols)
+    require(this.getNumRows==other.getNumRows)
+
+    val ev1: TypeInformation[BlockID] = TypeInformation.of(classOf[Int])
+
+    val result = this.data.fullOuterJoin(otherData).where(_.rowIndex).equalTo(_.rowIndex)(ev1)(
+      (left: IndexedRow, right: IndexedRow) => {
+        val row1 = Option(left).getOrElse(
+          IndexedRow(right.rowIndex, SparseVector.fromCOO(right.values.size, List((0, 0.0)))))
+        val row2 = Option(right).getOrElse(
+          IndexedRow(left.rowIndex, SparseVector.fromCOO(left.values.size, List((0, 0.0)))))
+
+        IndexedRow(row1.rowIndex, fun(row1.values, row2.values))
+
+      }
+
+    )
+    new DistributedRowMatrix(result,numRowsOpt,numColsOpt)
+
+  }
+
+  def sum(other:DistributedRowMatrix):DistributedRowMatrix={
+    val sumFunction:(Vector,Vector)=>Vector= (x:Vector,y:Vector)=> (x.asBreeze + y.asBreeze).fromBreeze
+    this.byRowOperation(sumFunction,other)
+  }
+
+  def subtract(other:DistributedRowMatrix):DistributedRowMatrix={
+    val subFunction:(Vector,Vector)=>Vector= (x:Vector,y:Vector)=> (x.asBreeze - y.asBreeze).fromBreeze
+    this.byRowOperation(subFunction,other)
+  }
 }
 
 object DistributedRowMatrix {
@@ -108,31 +145,30 @@ object DistributedRowMatrix {
   type MatrixRowIndex = Int
 
   /**
-    * Builds a DistributedRowMatrix from a dataset in COO
-    * @param isSorted If false, sorts the row to properly build the matrix representation.
-    *                 If already sorted, set this parameter to true to skip sorting.
-    * @return
-    */
+   * Builds a DistributedRowMatrix from a dataset in COO
+   * @param isSorted If false, sorts the row to properly build the matrix representation.
+   *                 If already sorted, set this parameter to true to skip sorting.
+   * @return
+   */
   def fromCOO(data: DataSet[(Int, Int, Double)],
               numRows: Int,
               numCols: Int,
               isSorted: Boolean = false): DistributedRowMatrix = {
     val vectorData: DataSet[(Int, SparseVector)] = data
       .groupBy(0)
-      .reduceGroup(sparseRow =>
-            {
-          require(sparseRow.nonEmpty)
-          val sortedRow =
-            if (isSorted) {
-              sparseRow.toList
-            } else {
-              sparseRow.toList.sortBy(row => row._2)
-            }
-          val (indices, values) = sortedRow
-            .map(x => (x._2, x._3))
-            .unzip
-            (sortedRow.head._1,
-             SparseVector(numCols, indices.toArray, values.toArray))
+      .reduceGroup(sparseRow => {
+        require(sparseRow.nonEmpty)
+        val sortedRow =
+          if (isSorted) {
+            sparseRow.toList
+          } else {
+            sparseRow.toList.sortBy(row => row._2)
+          }
+        val (indices, values) = sortedRow
+          .map(x => (x._2, x._3))
+          .unzip
+        (sortedRow.head._1,
+          SparseVector(numCols, indices.toArray, values.toArray))
       })
 
     val zippedData = vectorData.map(x => IndexedRow(x._1.toInt, x._2))
@@ -142,7 +178,7 @@ object DistributedRowMatrix {
 }
 
 case class IndexedRow(rowIndex: Int, values: Vector)
-    extends Ordered[IndexedRow] {
+  extends Ordered[IndexedRow] {
 
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
 
@@ -150,11 +186,11 @@ case class IndexedRow(rowIndex: Int, values: Vector)
 }
 
 /**
-  * Serializable Reduction function used by the toBlockMatrix function. Takes an ordered list of
-  * indexed row and split those rows to form blocks.
-  */
+ * Serializable Reduction function used by the toBlockMatrix function. Takes an ordered list of
+ * indexed row and split those rows to form blocks.
+ */
 class RowGroupReducer(blockMapper: BlockMapper)
-    extends RichGroupReduceFunction[IndexedRow, (Int, Block)] {
+  extends RichGroupReduceFunction[IndexedRow, (Int, Block)] {
 
   import org.apache.flink.ml.math.Breeze._
 
@@ -163,58 +199,53 @@ class RowGroupReducer(blockMapper: BlockMapper)
 
     val sortedRows = values.toList.sorted
     require(
-        sortedRows.max.rowIndex -
+      sortedRows.max.rowIndex -
         sortedRows.min.rowIndex <= blockMapper.rowsPerBlock)
     val slicesWithIndex: List[((Int, Int), Int)] =
       calculateSlices().zipWithIndex
 
     val splitRows: List[(Int, Int, Vector)] =
       sortedRows.flatMap(
-          row =>
-            {
+        row => {
           val breezeVector = row.values.asBreeze
-          slicesWithIndex.map(sliceWithIndex =>
-                {
-              val ((start, end), sliceIndex) = sliceWithIndex
-              (row.rowIndex,
-               sliceIndex,
-               breezeVector(start to end).toVector.fromBreeze)
+          slicesWithIndex.map(sliceWithIndex => {
+            val ((start, end), sliceIndex) = sliceWithIndex
+            (row.rowIndex,
+              sliceIndex,
+              breezeVector(start to end).toVector.fromBreeze)
           })
-      })
+        })
 
     splitRows
       .groupBy(_._2)
-      .map(splitRowGroup =>
-            {
-          val (mappedColIndex, rowGroup) = splitRowGroup
-          createBlock(rowGroup, blockMapper)
+      .map(splitRowGroup => {
+        val (mappedColIndex, rowGroup) = splitRowGroup
+        createBlock(rowGroup, blockMapper)
       })
-      .foreach(blockWithIndices =>
-            {
-          val (i, j, block) = blockWithIndices
+      .foreach(blockWithIndices => {
+        val (i, j, block) = blockWithIndices
 
-          val blockID = blockMapper.getBlockIdByMappedCoord(i, j)
-          out.collect((blockID, block))
+        val blockID = blockMapper.getBlockIdByMappedCoord(i, j)
+        out.collect((blockID, block))
       })
   }
 
   def calculateSlices(): List[(Int, Int)] =
     (0 to (math.ceil(blockMapper.numCols * 1.0 / blockMapper.colsPerBlock) - 1).toInt)
       .map(
-          x =>
-            {
+        x => {
 
-              val start = x * blockMapper.colsPerBlock
+          val start = x * blockMapper.colsPerBlock
 
-              val endT = (x + 1) * blockMapper.colsPerBlock - 1
-              val end =
-                if (endT > blockMapper.numCols - 1) {
-                  blockMapper.numCols - 1
-                } else {
-                  endT
-                }
-              (start, end)
-          }
+          val endT = (x + 1) * blockMapper.colsPerBlock - 1
+          val end =
+            if (endT > blockMapper.numCols - 1) {
+              blockMapper.numCols - 1
+            } else {
+              endT
+            }
+          (start, end)
+        }
       )
       .toList
 
@@ -225,16 +256,15 @@ class RowGroupReducer(blockMapper: BlockMapper)
     val mappedColIndex = data.head._2
     val mappedRowIndex = blockMapper.absCoordToMappedCoord(data.head._1, 0)._1
     val coo = data.flatMap(
-        blockPart =>
-          {
+      blockPart => {
         val (rowIndex, mappedColIndex, vector) = blockPart
         for {
           (colIndex, value) <- vector.iterator
         } yield (rowIndex % blockMapper.rowsPerBlock, colIndex, value)
-    })
+      })
 
     val matrix: FlinkMatrix = SparseMatrix.fromCOO(
-        blockMapper.rowsPerBlock, blockMapper.colsPerBlock, coo)
+      blockMapper.rowsPerBlock, blockMapper.colsPerBlock, coo)
     val block = (mappedRowIndex, mappedColIndex, Block(matrix))
     block
   }

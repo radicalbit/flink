@@ -23,7 +23,10 @@ import org.apache.flink.ml.math.SparseMatrix
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{Matchers, FlatSpec}
 
-class DistributedRowMatrixSuite extends FlatSpec with Matchers with FlinkTestBase{
+class DistributedRowMatrixSuite
+    extends FlatSpec
+    with Matchers
+    with FlinkTestBase {
 
   behavior of "Flink's DistributedRowMatrix fromSortedCOO"
 
@@ -79,16 +82,16 @@ class DistributedRowMatrixSuite extends FlatSpec with Matchers with FlinkTestBas
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val rawSampleSum1 = List(
-      (0, 0, 1.0),
-      (7, 4, 3.0),
-      (0, 1, 8.0),
-      (2, 8, 12.0)
+        (0, 0, 1.0),
+        (7, 4, 3.0),
+        (0, 1, 8.0),
+        (2, 8, 12.0)
     )
 
     val rawSampleSum2 = List(
-      (0, 0, 2.0),
-      (3, 4, 4.0),
-      (2, 8, 8.0)
+        (0, 0, 2.0),
+        (3, 4, 4.0),
+        (2, 8, 8.0)
     )
 
     val sumBlockMatrix1 =
@@ -96,15 +99,17 @@ class DistributedRowMatrixSuite extends FlatSpec with Matchers with FlinkTestBas
     val sumBlockMatrix2 =
       DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleSum2), 10, 10)
 
-    val expected =
-      List(
+    val expected = List(
         (0, 0, 3.0),
         (0, 1, 8.0),
         (3, 4, 4.0),
         (2, 8, 20.0),
         (7, 4, 3.0)
-      )
-    val result = sumBlockMatrix1.sum(sumBlockMatrix2).toLocalSparseMatrix.filter(_._3!=0.0)
-    result.toSet shouldEqual expected.toSet 
+    )
+    val result = sumBlockMatrix1
+      .sum(sumBlockMatrix2)
+      .toLocalSparseMatrix
+      .filter(_._3 != 0.0)
+    result.toSet shouldEqual expected.toSet
   }
 }

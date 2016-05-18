@@ -94,6 +94,7 @@ KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
 KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
 
+KEY_KRB5_JAAS_PATH="krb5.jaas.path"
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
@@ -218,6 +219,10 @@ fi
 
 if [ -z "${FLINK_PID_DIR}" ]; then
     FLINK_PID_DIR=$(readFromConfig ${KEY_ENV_PID_DIR} "${DEFAULT_ENV_PID_DIR}" "${YAML_CONF}")
+fi
+
+if [ -z "${KRB5_JAAS_PATH}" ]; then
+    KRB5_JAAS_PATH=$(readFromConfig ${KEY_KRB5_JAAS_PATH} "" "${YAML_CONF}")
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then

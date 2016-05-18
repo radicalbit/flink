@@ -100,6 +100,10 @@ case $STARTSTOP in
           fi
         fi
 
+        if [ $KRB5_JAAS_PATH ]; then
+          JVM_ARGS="$JVM_ARGS -Djava.security.auth.login.config=$KRB5_JAAS_PATH"
+        fi
+
         echo "Starting $DAEMON daemon on host $HOSTNAME."
         $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 2>&1 < /dev/null &
 

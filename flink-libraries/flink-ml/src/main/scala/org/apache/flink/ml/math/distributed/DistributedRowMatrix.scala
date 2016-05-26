@@ -205,12 +205,15 @@ class RowGroupReducer(blockMapper: BlockMapper)
     val slicesWithIndex: List[((Int, Int), Int)] = computeSlices().zipWithIndex
 
     val splitRows: List[(Int, Int, Vector)] = sortedRows.flatMap(row => {
-      val breezeVector = row.values.asBreeze
+
       slicesWithIndex.map(sliceWithIndex => {
         val ((start, end), sliceIndex) = sliceWithIndex
+        val (indices, values) = row.values.filter {
+          case (key: Int, value: Double) => key <= end && key >= start
+        }.unzip
         (row.rowIndex,
          sliceIndex,
-         breezeVector(start to end).toVector.fromBreeze)
+         SparseVector(blockMapper.rowsPerBlock, indices.toArray, values.toArray))
       })
     })
 
@@ -258,7 +261,7 @@ class RowGroupReducer(blockMapper: BlockMapper)
         blockPart => {
       val (rowIndex, mappedColIndex, vector) = blockPart
       for {
-        (colIndex, value) <- vector.iterator
+        (colIndex, value) <- vector.toList
       } yield (rowIndex % blockMapper.rowsPerBlock, colIndex, value)
     })
 

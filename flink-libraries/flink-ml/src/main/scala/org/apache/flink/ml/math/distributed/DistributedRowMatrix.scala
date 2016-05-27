@@ -29,6 +29,8 @@ import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
 import org.apache.flink.util.Collector
 
 import scala.collection.JavaConversions._
+import scala.collection.parallel
+import scala.collection.parallel.mutable
 
 /**
   *
@@ -203,7 +205,10 @@ class RowGroupReducer(blockMapper: BlockMapper)
     val slicesWithIndex: List[((Int, Int), Int)] = computeSlices().zipWithIndex
 
     val splitRows: List[(Int, Int, Vector)] = sortedRows.flatMap(row => {
+      val slicedVector = sliceVector(row.values)
+      slicedVector.map(x => (row.rowIndex, x._1, x._2))
 
+      /*
       slicesWithIndex.map {
         case ((start, end), sliceIndex) => {
             val (indices, values) = row.values.filter {
@@ -217,7 +222,7 @@ class RowGroupReducer(blockMapper: BlockMapper)
                           normalizedIndices.toArray,
                           values.toArray))
           }
-      }
+      }*/
     })
 
     splitRows
@@ -232,6 +237,27 @@ class RowGroupReducer(blockMapper: BlockMapper)
         val blockID = blockMapper.getBlockIdByMappedCoord(i, j)
         out.collect((blockID, block))
       })
+  }
+
+  def sliceVector(v: Vector): List[(Int, Vector)] = {
+
+    def getSliceByColIndex(index: Int) = math.floor(index.toDouble / blockMapper.colsPerBlock).toInt
+
+    val (vectorIndices, vectorValues) = v.iterator.filter(_._2 != 0).toList.unzip
+    require(vectorIndices.size == vectorValues.size)
+
+
+
+    val cellsToSlice = for (i <- vectorIndices.indices) yield
+      (getSliceByColIndex(vectorIndices(i)),
+       vectorIndices(i) % blockMapper.colsPerBlock,
+       vectorValues(i))
+
+    cellsToSlice.groupBy(_._1).map {
+      case (sliceID, seq) =>
+        (sliceID,
+         SparseVector(blockMapper.colsPerBlock, seq.map(_._2).toArray, seq.map(_._3).toArray))
+    }.toList
   }
 
   def computeSlices(): List[(Int, Int)] =

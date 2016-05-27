@@ -21,7 +21,7 @@ package org.apache.flink.ml.math.distributed
 import java.lang
 
 import breeze.linalg.{CSCMatrix => BreezeSparseMatrix, Matrix => BreezeMatrix, Vector => BreezeVector}
-import org.apache.flink.api.common.functions.RichGroupReduceFunction
+import org.apache.flink.api.common.functions.{RichFlatMapFunction, RichGroupReduceFunction}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.ml.math.Breeze._
@@ -29,8 +29,6 @@ import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
 import org.apache.flink.util.Collector
 
 import scala.collection.JavaConversions._
-import scala.collection.parallel
-import scala.collection.parallel.mutable
 
 /**
   *
@@ -135,11 +133,13 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     val blockMapper = BlockMapper(
         getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
 
+    val splitRows: DataSet[(Int, Int, Vector)] =
+      data.flatMap(new RowSplitter(blockMapper))
+
     val rowGroupReducer = new RowGroupReducer(blockMapper)
 
-    val blocks = data
-      .groupBy(row => blockMapper.absCoordToMappedCoord(row.rowIndex, 0)._1)
-      .reduceGroup(rowGroupReducer)
+    val blocks =
+      splitRows.groupBy(0).reduceGroup(new RowGroupReducer(blockMapper))
 
     new BlockMatrix(blocks, blockMapper)
   }
@@ -193,111 +193,62 @@ case class IndexedRow(rowIndex: Int, values: Vector)
   * indexed row and split those rows to form blocks.
   */
 class RowGroupReducer(blockMapper: BlockMapper)
-    extends RichGroupReduceFunction[IndexedRow, (Int, Block)] {
+    extends RichGroupReduceFunction[(Int, Int, Vector), (Int, Block)] {
 
-  override def reduce(values: lang.Iterable[IndexedRow],
+  override def reduce(values: lang.Iterable[(Int, Int, Vector)],
                       out: Collector[(Int, Block)]): Unit = {
 
-    val sortedRows = values.toList.sorted
-    require(
-        sortedRows.max.rowIndex -
-        sortedRows.min.rowIndex <= blockMapper.rowsPerBlock)
-    val slicesWithIndex: List[((Int, Int), Int)] = computeSlices().zipWithIndex
+    val sortedRows = values.toList.sortBy(_._2)
+    val blockID = sortedRows.head._1
+    val coo = for {
+      (_, rowIndex, vec) <- sortedRows
+      (colIndex, value) <- vec if value != 0
+    } yield (rowIndex, colIndex, value)
 
-    val splitRows: List[(Int, Int, Vector)] = sortedRows.flatMap(row => {
-      val slicedVector = sliceVector(row.values)
-      slicedVector.map(x => (row.rowIndex, x._1, x._2))
+    val block: Block = Block(
+        SparseMatrix.fromCOO(
+            blockMapper.rowsPerBlock, blockMapper.colsPerBlock, coo))
+    out.collect((blockID, block))
+  }
+}
 
-      /*
-      slicesWithIndex.map {
-        case ((start, end), sliceIndex) => {
-            val (indices, values) = row.values.filter {
-              case (key: Int, value: Double) =>
-                key <= end && key >= start && value != 0.0
-            }.unzip
-            val normalizedIndices = indices.map(_ % blockMapper.colsPerBlock)
-            (row.rowIndex,
-             sliceIndex,
-             SparseVector(blockMapper.colsPerBlock,
-                          normalizedIndices.toArray,
-                          values.toArray))
-          }
-      }*/
-    })
-
-    splitRows
-      .groupBy(_._2)
-      .map(splitRowGroup => {
-        val (mappedColIndex, rowGroup) = splitRowGroup
-        createBlock(rowGroup, blockMapper)
-      })
-      .foreach(blockWithIndices => {
-        val (i, j, block) = blockWithIndices
-
-        val blockID = blockMapper.getBlockIdByMappedCoord(i, j)
-        out.collect((blockID, block))
-      })
+class RowSplitter(blockMapper: BlockMapper)
+    extends RichFlatMapFunction[IndexedRow, (Int, Int, Vector)] {
+  override def flatMap(
+      row: IndexedRow, out: Collector[(Int, Int, Vector)]): Unit = {
+    val IndexedRow(rowIndex, vector) = row
+    val splitRow = sliceVector(vector)
+    for ((mappedCol, slice) <- splitRow) {
+      val mappedRow =
+        math.floor(rowIndex * 1.0 / blockMapper.rowsPerBlock).toInt
+      val blockID = blockMapper.getBlockIdByMappedCoord(mappedRow, mappedCol)
+      out.collect((blockID, rowIndex % blockMapper.rowsPerBlock, slice))
+    }
   }
 
   def sliceVector(v: Vector): List[(Int, Vector)] = {
 
-    def getSliceByColIndex(index: Int) = math.floor(index.toDouble / blockMapper.colsPerBlock).toInt
+    def getSliceByColIndex(index: Int): Int =
+      index / blockMapper.colsPerBlock
 
-    val (vectorIndices, vectorValues) = v.iterator.filter(_._2 != 0).toList.unzip
+    val (vectorIndices, vectorValues) =
+      v.iterator.filter(_._2 != 0).toList.unzip
     require(vectorIndices.size == vectorValues.size)
-
-
 
     val cellsToSlice = for (i <- vectorIndices.indices) yield
       (getSliceByColIndex(vectorIndices(i)),
        vectorIndices(i) % blockMapper.colsPerBlock,
        vectorValues(i))
 
-    cellsToSlice.groupBy(_._1).map {
-      case (sliceID, seq) =>
-        (sliceID,
-         SparseVector(blockMapper.colsPerBlock, seq.map(_._2).toArray, seq.map(_._3).toArray))
-    }.toList
-  }
-
-  def computeSlices(): List[(Int, Int)] =
-    (0 to (math.ceil(blockMapper.numCols * 1.0 / blockMapper.colsPerBlock) -
-            1).toInt)
-      .map(
-          x => {
-
-            val start = x * blockMapper.colsPerBlock
-
-            val endT = (x + 1) * blockMapper.colsPerBlock - 1
-            val end =
-              if (endT > blockMapper.numCols - 1) {
-                blockMapper.numCols - 1
-              } else {
-                endT
-              }
-            (start, end)
-          }
-      )
-      .toList
-
-//Create a Block with mapped coordinates from an intermediate unstructured block
-  def createBlock(data: List[(Int, Int, Vector)],
-                  blockMapper: BlockMapper): (Int, Int, Block) = {
-    require(data.nonEmpty)
-    val mappedColIndex = data.head._2
-    val mappedRowIndex = blockMapper.absCoordToMappedCoord(data.head._1, 0)._1
-    val coo = data.flatMap(
-        blockPart => {
-      val (rowIndex, mappedColIndex, vector) = blockPart
-      vector.map {
-        case (colIndex, value) =>
-          (rowIndex % blockMapper.rowsPerBlock, colIndex, value)
+    cellsToSlice
+      .groupBy(_._1)
+      .map {
+        case (sliceID, seq) =>
+          (sliceID,
+           SparseVector(blockMapper.colsPerBlock,
+                        seq.map(_._2).toArray,
+                        seq.map(_._3).toArray))
       }
-    })
-
-    val matrix: FlinkMatrix = SparseMatrix.fromCOO(
-        blockMapper.rowsPerBlock, blockMapper.colsPerBlock, coo)
-    val block = (mappedRowIndex, mappedColIndex, Block(matrix))
-    block
+      .toList
   }
 }

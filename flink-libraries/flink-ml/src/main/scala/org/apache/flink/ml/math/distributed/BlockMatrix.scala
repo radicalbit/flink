@@ -30,6 +30,13 @@ import org.apache.flink.util.Collector
 
 import scala.collection.JavaConversions._
 
+/**
+ * Distributed Matrix represented as blocks. A BlockMapper instance is used to track blocks of the matrix.
+ * Every block in a BlockMatrix has an associated ID that also identifies its position in the BlockMatrix.
+ * @param data
+ * @param blockMapper
+ */
+
 class BlockMatrix(
     data: DataSet[(BlockID, Block)],
     blockMapper: BlockMapper
@@ -94,9 +101,10 @@ class BlockMatrix(
   }
 
   /**
-    * Sum two matrices.
-    * @return
-    */
+   * Add the matrix to another matrix.
+   * @param other
+   * @return
+   */
   def sum(other: BlockMatrix): BlockMatrix = {
     val sumFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
       Block((b1.toBreeze + b2.toBreeze).fromBreeze)
@@ -104,6 +112,11 @@ class BlockMatrix(
     this.blockPairOperation(sumFunction, other)
   }
 
+  /**
+   * Subtracts another matrix.
+   * @param other
+   * @return
+   */
   def subtract(other: BlockMatrix): BlockMatrix = {
     val subFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
       Block((b1.toBreeze - b2.toBreeze).fromBreeze)
@@ -192,7 +205,7 @@ object BlockMatrix {
 /**
   * MapFunction that converts from BlockID to mapped coordinates using a BlockMapper.
   */
-class MapToMappedCoord(blockMapper: BlockMapper)
+private class MapToMappedCoord(blockMapper: BlockMapper)
     extends MapFunction[(Int, Block), (Int, Int, Block)] {
   override def map(value: (BlockID, Block)): (Int, Int, Block) = {
     val (i, j) = blockMapper.getBlockMappedCoordinates(value._1)
@@ -204,7 +217,7 @@ class MapToMappedCoord(blockMapper: BlockMapper)
   * GroupReduce function used in the conversion to row matrix format.
   * Taken a list of blocks on the same row, it then returns a list of IndexedRows.
   */
-class ToRowMatrixReducer(blockMapper: BlockMapper)
+private class ToRowMatrixReducer(blockMapper: BlockMapper)
     extends RichGroupReduceFunction[(Int, Int, Block), IndexedRow] {
 
   override def reduce(values: lang.Iterable[(Int, Int, Block)],
@@ -253,7 +266,7 @@ class ToRowMatrixReducer(blockMapper: BlockMapper)
   }
 }
 
-class GroupMultiplyReduction(blockMapper: BlockMapper)
+private class GroupMultiplyReduction(blockMapper: BlockMapper)
     extends RichGroupReduceFunction[
         ((Int, Int, Block), (Int, Int, Block)), (BlockID, Block)] {
   override def reduce(

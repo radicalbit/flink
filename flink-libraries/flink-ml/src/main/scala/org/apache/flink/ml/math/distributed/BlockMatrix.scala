@@ -69,15 +69,14 @@ class BlockMatrix(
       fun: (Block, Block) => Block, other: BlockMatrix): BlockMatrix = {
     require(hasSameFormat(other))
 
-    val ev1: TypeInformation[BlockID] = TypeInformation.of(classOf[Int])
 
     /*Full outer join on blocks. The full outer join is required because of
     the sparse nature of the matrix.
     Matching blocks may be missing and a block of zeros is used instead.*/
     val processedBlocks = this.getDataset
       .fullOuterJoin(other.getDataset)
-      .where(_._1)
-      .equalTo(_._1)(ev1) {
+      .where(0)
+      .equalTo(0) {
         (left: (BlockID, Block), right: (BlockID, Block)) =>
           {
 

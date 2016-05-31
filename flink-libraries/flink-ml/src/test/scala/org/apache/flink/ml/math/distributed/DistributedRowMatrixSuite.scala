@@ -19,7 +19,7 @@
 package org.apache.flink.ml.math.distributed
 
 import org.apache.flink.api.scala._
-import org.apache.flink.ml.math.SparseMatrix
+import org.apache.flink.ml.math.{SparseVector, SparseMatrix}
 import org.apache.flink.test.util.FlinkTestBase
 import org.scalatest.{Matchers, FlatSpec}
 
@@ -51,6 +51,42 @@ class DistributedRowMatrixSuite
     val dmatrix = DistributedRowMatrix.fromCOO(rowDataset, 3, 5)
 
     dmatrix.toCOO.toSet.filter(_._3 != 0) shouldBe rawSampleData.toSet
+  }
+
+  it should "return the correct dimensions when provided by the user" in {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val rowDataset = env.fromCollection(rawSampleData)
+
+    val dmatrix = DistributedRowMatrix.fromCOO(rowDataset, 3, 5)
+
+    dmatrix.getNumCols shouldBe 5
+    dmatrix.getNumRows shouldBe 3
+    dmatrix.numCols.collect().head shouldBe 5
+    dmatrix.numRows.collect().head shouldBe 3
+  }
+
+  it should "return the correct dimensions when not provided by the user" in {
+
+    val env = ExecutionEnvironment.getExecutionEnvironment
+
+    env.setParallelism(2)
+
+    val data =
+      List(IndexedRow(0, SparseVector(4, Array(2, 3), Array(1.0, 1.0))),
+           IndexedRow(2, SparseVector(4, Array(2, 3), Array(1.0, 1.0))),
+           IndexedRow(3, SparseVector(4, Array(1, 3), Array(1.0, 1.0))),
+           IndexedRow(12, SparseVector(4, Array(1, 3), Array(1.0, 1.0))))
+    val ds = env.fromCollection(data)
+
+    val dmatrix = new DistributedRowMatrix(ds)
+
+    dmatrix.getNumCols shouldBe 4
+    dmatrix.getNumRows shouldBe 13
+    dmatrix.numCols.collect().head shouldBe 4
+    dmatrix.numRows.collect().head shouldBe 13
   }
 
   it should "return a sparse local matrix containing the initialization data" in {

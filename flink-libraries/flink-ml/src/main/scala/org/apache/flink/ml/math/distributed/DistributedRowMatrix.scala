@@ -31,7 +31,7 @@ import org.apache.flink.util.Collector
 import scala.collection.JavaConversions._
 
 /**
-  *
+  * Distributed row-major matrix representation.
   * @param numRowsOpt If None, will be calculated from the DataSet.
   * @param numColsOpt If None, will be calculated from the DataSet.
   */
@@ -42,21 +42,25 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
 
   lazy val getNumRows: Int = numRowsOpt match {
     case Some(rows) => rows
-    case None => data.count().toInt
+    case None => numRows.collect().head
   }
 
   lazy val getNumCols: Int = numColsOpt match {
     case Some(cols) => cols
-    case None => calcCols
+    case None => numCols.collect().head
+  }
+
+  lazy val numRows: DataSet[Int] = numRowsOpt match {
+    case Some(rows) => data.getExecutionEnvironment.fromElements(rows)
+    case None => data.max("rowIndex").map(_.rowIndex + 1)
+  }
+
+  lazy val numCols: DataSet[Int] = numColsOpt match {
+    case Some(cols) => data.getExecutionEnvironment.fromElements(cols)
+    case None => data.first(1).map(_.values.size)
   }
 
   val getRowData = data
-
-  private def calcCols: Int =
-    data.first(1).collect().headOption match {
-      case Some(vector) => vector.values.size
-      case None => 0
-    }
 
   /**
     * Collects the data in the form of a sequence of coordinates associated with their values.
@@ -85,18 +89,22 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
   //TODO: convert to dense representation on the distributed matrix and collect it afterward
   def toLocalDenseMatrix: DenseMatrix = this.toLocalSparseMatrix.toDenseMatrix
 
+  /**
+    * Apply a high-order function to couple of rows
+    * @param fun
+    * @param other
+    * @return
+    */
   def byRowOperation(fun: (Vector, Vector) => Vector,
                      other: DistributedRowMatrix): DistributedRowMatrix = {
     val otherData = other.getRowData
     require(this.getNumCols == other.getNumCols)
     require(this.getNumRows == other.getNumRows)
 
-    val ev1: TypeInformation[Int] = TypeInformation.of(classOf[Int])
-
     val result = this.data
       .fullOuterJoin(otherData)
-      .where(_.rowIndex)
-      .equalTo(_.rowIndex)(ev1)(
+      .where("rowIndex")
+      .equalTo("rowIndex")(
           (left: IndexedRow, right: IndexedRow) => {
             val row1 = Option(left).getOrElse(IndexedRow(
                     right.rowIndex,
@@ -111,12 +119,22 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     new DistributedRowMatrix(result, numRowsOpt, numColsOpt)
   }
 
+  /**
+    * Add the matrix to another matrix.
+    * @param other
+    * @return
+    */
   def sum(other: DistributedRowMatrix): DistributedRowMatrix = {
     val sumFunction: (Vector, Vector) => Vector = (x: Vector, y: Vector) =>
       (x.asBreeze + y.asBreeze).fromBreeze
     this.byRowOperation(sumFunction, other)
   }
 
+  /**
+    * Subtracts another matrix.
+    * @param other
+    * @return
+    */
   def subtract(other: DistributedRowMatrix): DistributedRowMatrix = {
     val subFunction: (Vector, Vector) => Vector = (x: Vector, y: Vector) =>
       (x.asBreeze - y.asBreeze).fromBreeze

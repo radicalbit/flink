@@ -31,12 +31,11 @@ import org.apache.flink.util.Collector
 import scala.collection.JavaConversions._
 
 /**
- * Distributed Matrix represented as blocks. A BlockMapper instance is used to track blocks of the matrix.
- * Every block in a BlockMatrix has an associated ID that also identifies its position in the BlockMatrix.
- * @param data
- * @param blockMapper
- */
-
+  * Distributed Matrix represented as blocks. A BlockMapper instance is used to track blocks of the matrix.
+  * Every block in a BlockMatrix has an associated ID that also identifies its position in the BlockMatrix.
+  * @param data
+  * @param blockMapper
+  */
 class BlockMatrix(
     data: DataSet[(BlockID, Block)],
     blockMapper: BlockMapper
@@ -47,6 +46,9 @@ class BlockMatrix(
 
   val getNumCols = blockMapper.numCols
   val getNumRows = blockMapper.numRows
+
+  val numCols = data.getExecutionEnvironment.fromElements(blockMapper.numCols)
+  val numRows = data.getExecutionEnvironment.fromElements(blockMapper.numRows)
 
   val getBlockCols = blockMapper.numBlockCols
   val getBlockRows = blockMapper.numBlockRows
@@ -76,14 +78,11 @@ class BlockMatrix(
       fun: (Block, Block) => Block, other: BlockMatrix): BlockMatrix = {
     require(hasSameFormat(other))
 
-
     /*Full outer join on blocks. The full outer join is required because of
     the sparse nature of the matrix.
     Matching blocks may be missing and a block of zeros is used instead.*/
-    val processedBlocks = this.getDataset
-      .fullOuterJoin(other.getDataset)
-      .where(0)
-      .equalTo(0) {
+    val processedBlocks =
+      this.getDataset.fullOuterJoin(other.getDataset).where(0).equalTo(0) {
         (left: (BlockID, Block), right: (BlockID, Block)) =>
           {
 
@@ -101,10 +100,10 @@ class BlockMatrix(
   }
 
   /**
-   * Add the matrix to another matrix.
-   * @param other
-   * @return
-   */
+    * Add the matrix to another matrix.
+    * @param other
+    * @return
+    */
   def sum(other: BlockMatrix): BlockMatrix = {
     val sumFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
       Block((b1.toBreeze + b2.toBreeze).fromBreeze)
@@ -113,10 +112,10 @@ class BlockMatrix(
   }
 
   /**
-   * Subtracts another matrix.
-   * @param other
-   * @return
-   */
+    * Subtracts another matrix.
+    * @param other
+    * @return
+    */
   def subtract(other: BlockMatrix): BlockMatrix = {
     val subFunction: (Block, Block) => Block = (b1: Block, b2: Block) =>
       Block((b1.toBreeze - b2.toBreeze).fromBreeze)

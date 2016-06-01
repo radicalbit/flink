@@ -31,8 +31,10 @@ import org.apache.flink.util.Collector
 import scala.collection.JavaConversions._
 
 /**
-  * Distributed Matrix represented as blocks. A BlockMapper instance is used to track blocks of the matrix.
-  * Every block in a BlockMatrix has an associated ID that also identifies its position in the BlockMatrix.
+  * Distributed Matrix represented as blocks. 
+  * A BlockMapper instance is used to track blocks of the matrix.
+  * Every block in a BlockMatrix has an associated ID that also 
+  * identifies its position in the BlockMatrix.
   * @param data
   * @param blockMapper
   */

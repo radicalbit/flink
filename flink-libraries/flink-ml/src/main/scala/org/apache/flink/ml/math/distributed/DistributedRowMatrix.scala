@@ -32,35 +32,15 @@ import scala.collection.JavaConversions._
 
 /**
   * Distributed row-major matrix representation.
-  * @param numRowsOpt If None, will be calculated from the DataSet.
-  * @param numColsOpt If None, will be calculated from the DataSet.
+  * @param numRows Number of rows.
+  * @param numCols Number of columns.
   */
-class DistributedRowMatrix(data: DataSet[IndexedRow],
-                           numRowsOpt: Option[Int] = None,
-                           numColsOpt: Option[Int] = None)
+class DistributedRowMatrix(val data: DataSet[IndexedRow],
+                           val numRows: Int,
+                           val numCols: Int )
     extends DistributedMatrix {
 
-  lazy val getNumRows: Int = numRowsOpt match {
-    case Some(rows) => rows
-    case None => numRows.collect().head
-  }
 
-  lazy val getNumCols: Int = numColsOpt match {
-    case Some(cols) => cols
-    case None => numCols.collect().head
-  }
-
-  lazy val numRows: DataSet[Int] = numRowsOpt match {
-    case Some(rows) => data.getExecutionEnvironment.fromElements(rows)
-    case None => data.max("rowIndex").map(_.rowIndex + 1)
-  }
-
-  lazy val numCols: DataSet[Int] = numColsOpt match {
-    case Some(cols) => data.getExecutionEnvironment.fromElements(cols)
-    case None => data.first(1).map(_.values.size)
-  }
-
-  val getRowData = data
 
   /**
     * Collects the data in the form of a sequence of coordinates associated with their values.
@@ -80,9 +60,9 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     */
   def toLocalSparseMatrix: SparseMatrix = {
     val localMatrix =
-      SparseMatrix.fromCOO(this.getNumRows, this.getNumCols, this.toCOO)
-    require(localMatrix.numRows == this.getNumRows)
-    require(localMatrix.numCols == this.getNumCols)
+      SparseMatrix.fromCOO(this.numRows, this.numCols, this.toCOO)
+    require(localMatrix.numRows == this.numRows)
+    require(localMatrix.numCols == this.numCols)
     localMatrix
   }
 
@@ -97,26 +77,33 @@ class DistributedRowMatrix(data: DataSet[IndexedRow],
     */
   def byRowOperation(fun: (Vector, Vector) => Vector,
                      other: DistributedRowMatrix): DistributedRowMatrix = {
-    val otherData = other.getRowData
-    require(this.getNumCols == other.getNumCols)
-    require(this.getNumRows == other.getNumRows)
+    val otherData = other.data
+    require(this.numCols == other.numCols)
+    require(this.numRows == other.numRows)
 
     val result = this.data
       .fullOuterJoin(otherData)
       .where("rowIndex")
       .equalTo("rowIndex")(
           (left: IndexedRow, right: IndexedRow) => {
-            val row1 = Option(left).getOrElse(IndexedRow(
+            val row1 = Option(left) match {
+              case Some(row: IndexedRow) => row
+              case None =>
+                IndexedRow(
                     right.rowIndex,
-                    SparseVector.fromCOO(right.values.size, List((0, 0.0)))))
-            val row2 = Option(right).getOrElse(IndexedRow(
+                    SparseVector.fromCOO(right.values.size, List((0, 0.0))))
+            }
+            val row2 = Option(right) match {
+              case Some(row: IndexedRow) => row
+              case None =>
+                IndexedRow(
                     left.rowIndex,
-                    SparseVector.fromCOO(left.values.size, List((0, 0.0)))))
-
+                    SparseVector.fromCOO(left.values.size, List((0, 0.0))))
+            }
             IndexedRow(row1.rowIndex, fun(row1.values, row2.values))
           }
       )
-    new DistributedRowMatrix(result, numRowsOpt, numColsOpt)
+    new DistributedRowMatrix(result, numRows, numCols)
   }
 
   /**
@@ -194,7 +181,7 @@ object DistributedRowMatrix {
 
     val zippedData = vectorData.map(x => IndexedRow(x._1.toInt, x._2))
 
-    new DistributedRowMatrix(zippedData, Some(numRows), Some(numCols))
+    new DistributedRowMatrix(zippedData, numRows, numCols)
   }
 }
 
@@ -203,7 +190,7 @@ case class IndexedRow(rowIndex: Int, values: Vector)
 
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)
 
-  override def toString: String = s"($rowIndex,${values.toString}"
+  override def toString: String = s"($rowIndex,${values.toString})"
 }
 
 /**

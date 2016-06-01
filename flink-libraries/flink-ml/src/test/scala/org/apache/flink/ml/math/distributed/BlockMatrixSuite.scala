@@ -61,8 +61,8 @@ class BlockMatrixSuite
         (3, 1, 4.0),
         (3, 2, 468.0)
     )
-    result.getNumRows shouldBe 4
-    result.getNumCols shouldBe 4
+    result.numRows shouldBe 4
+    result.numCols shouldBe 4
   }
 
   "sum" should "correctly sum two matrices" in {
@@ -100,7 +100,7 @@ class BlockMatrixSuite
       sumBlockMatrix1.sum(sumBlockMatrix2).toRowMatrix.toLocalDenseMatrix
 
     result shouldBe expected.toDenseMatrix
-    result.numRows shouldBe sumBlockMatrix1.getNumRows
-    result.numCols shouldBe sumBlockMatrix1.getNumCols
+    result.numRows shouldBe sumBlockMatrix1.numRows
+    result.numCols shouldBe sumBlockMatrix1.numCols
   }
 }

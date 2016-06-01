@@ -132,11 +132,11 @@ class DistributedRowMatrix(val data: DataSet[IndexedRow],
       rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
     require(rowsPerBlock > 0 && colsPerBlock > 0,
             "Block sizes must be a strictly positive value.")
-    require(rowsPerBlock <= getNumRows && colsPerBlock <= getNumCols,
+    require(rowsPerBlock <= numRows && colsPerBlock <= numCols,
             "Blocks can't be bigger than the matrix")
 
     val blockMapper = BlockMapper(
-        getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
+        numRows, numCols, rowsPerBlock, colsPerBlock)
 
     val splitRows: DataSet[(Int, Int, Vector)] =
       data.flatMap(new RowSplitter(blockMapper))

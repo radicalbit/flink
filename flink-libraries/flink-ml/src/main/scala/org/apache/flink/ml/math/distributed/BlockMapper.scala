@@ -18,6 +18,8 @@
 
 package org.apache.flink.ml.math.distributed
 
+import org.apache.flink.ml.math.distributed.DistributedMatrix.{MatrixColIndex, MatrixRowIndex}
+
 /**
   * This class is in charge of handling all the spatial logic required by BlockMatrix.
   * It introduces a new space of zero-indexed coordinates (i,j), called "mapped coordinates".
@@ -48,7 +50,7 @@ case class BlockMapper( //original matrix size
     * @param j
     * @return
     */
-  def absCoordToMappedCoord(i: Int, j: Int): (Int, Int) =
+  def absCoordToMappedCoord(i: MatrixRowIndex, j: MatrixColIndex): (Int, Int) =
     getBlockMappedCoordinates(getBlockIdByCoordinates(i, j))
 
   /**
@@ -57,7 +59,7 @@ case class BlockMapper( //original matrix size
     * @param j Original column
     * @return Block ID
     */
-  def getBlockIdByCoordinates(i: Int, j: Int): Int = {
+  def getBlockIdByCoordinates(i: MatrixRowIndex, j: MatrixColIndex): Int = {
 
     if (i < 0 || j < 0 || i >= numRows || j >= numCols) {
       throw new IllegalArgumentException(s"Invalid coordinates ($i,$j).")

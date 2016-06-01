@@ -99,8 +99,8 @@ class MatrixConversionsSuite
 
     dataMap(blockMatrix2.getNumBlocks - 1).getBlockData(0, 19) shouldBe 123.0
 
-    d2.getNumCols shouldBe blockMatrix2.getNumCols
-    d2.getNumRows shouldBe blockMatrix2.getNumRows
+    d2.numCols shouldBe blockMatrix2.numCols
+    d2.numRows shouldBe blockMatrix2.numRows
   }
 
   "BlockMatrix.toRowMatrix" should "preserve the matrix structure after conversion" in {
@@ -153,7 +153,7 @@ class MatrixConversionsSuite
                                       ),
                                       new BlockMapper(4, 4, 2, 2))
 
-    blockMatrix.toRowMatrix.getRowData.collect() shouldBe List(
+    blockMatrix.toRowMatrix.data.collect() shouldBe List(
         IndexedRow(1, SparseVector.fromCOO(4, List((1, 12.0), (2, 50.0)))),
         IndexedRow(
             0, SparseVector.fromCOO(4, List((0, 3.0), (1, 1.0), (3, 4.0)))),

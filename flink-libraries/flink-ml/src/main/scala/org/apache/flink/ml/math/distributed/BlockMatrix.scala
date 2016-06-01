@@ -46,11 +46,9 @@ class BlockMatrix(
 
   val getDataset = data
 
-  val getNumCols = blockMapper.numCols
-  val getNumRows = blockMapper.numRows
+  val numCols = blockMapper.numCols
+  val numRows = blockMapper.numRows
 
-  val numCols = data.getExecutionEnvironment.fromElements(blockMapper.numCols)
-  val numRows = data.getExecutionEnvironment.fromElements(blockMapper.numRows)
 
   val getBlockCols = blockMapper.numBlockCols
   val getBlockRows = blockMapper.numBlockRows
@@ -65,8 +63,8 @@ class BlockMatrix(
     * @return
     */
   def hasSameFormat(other: BlockMatrix): Boolean =
-    this.getNumRows == other.getNumRows &&
-    this.getNumCols == other.getNumCols &&
+    this.numRows == other.numRows &&
+    this.numCols == other.numCols &&
     this.getRowsPerBlock == other.getRowsPerBlock &&
     this.getColsPerBlock == other.getColsPerBlock
 
@@ -173,8 +171,8 @@ class BlockMatrix(
 
     //Finally a new block matrix is built.
     new BlockMatrix(reducedBlocks,
-                    BlockMapper(this.getNumRows,
-                                other.getNumCols,
+                    BlockMapper(this.numRows,
+                                other.numCols,
                                 this.blockMapper.rowsPerBlock,
                                 this.blockMapper.colsPerBlock))
   }
@@ -189,7 +187,7 @@ class BlockMatrix(
       .groupBy(blockWithCoord => blockWithCoord._1)
       //turn a group of blocks in a seq of rows
       .reduceGroup(new ToRowMatrixReducer(blockMapper))
-    new DistributedRowMatrix(indexedRows, Some(getNumRows), Some(getNumCols))
+    new DistributedRowMatrix(indexedRows, numRows, numCols)
   }
 }
 

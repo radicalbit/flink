@@ -27,6 +27,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.ml.math.Breeze._
 import org.apache.flink.ml.math.{Matrix => FlinkMatrix, _}
 import org.apache.flink.util.Collector
+import org.apache.flink.ml.math.distributed.DistributedMatrix._
+import org.apache.flink.ml.math._
 
 import scala.collection.JavaConversions._
 
@@ -37,16 +39,14 @@ import scala.collection.JavaConversions._
   */
 class DistributedRowMatrix(val data: DataSet[IndexedRow],
                            val numRows: Int,
-                           val numCols: Int )
+                           val numCols: Int)
     extends DistributedMatrix {
-
-
 
   /**
     * Collects the data in the form of a sequence of coordinates associated with their values.
     * @return
     */
-  def toCOO: Seq[(Int, Int, Double)] = {
+  def toCOO: Seq[(MatrixRowIndex, MatrixColIndex, Double)] = {
 
     val localRows = data.collect()
 
@@ -132,11 +132,11 @@ class DistributedRowMatrix(val data: DataSet[IndexedRow],
       rowsPerBlock: Int = 1024, colsPerBlock: Int = 1024): BlockMatrix = {
     require(rowsPerBlock > 0 && colsPerBlock > 0,
             "Block sizes must be a strictly positive value.")
-    require(rowsPerBlock <= getNumRows && colsPerBlock <= getNumCols,
+    require(rowsPerBlock <= numRows && colsPerBlock <= numCols,
             "Blocks can't be bigger than the matrix")
 
     val blockMapper = BlockMapper(
-        getNumRows, getNumCols, rowsPerBlock, colsPerBlock)
+        numRows, numCols, rowsPerBlock, colsPerBlock)
 
     val splitRows: DataSet[(Int, Int, Vector)] =
       data.flatMap(new RowSplitter(blockMapper))
@@ -152,19 +152,17 @@ class DistributedRowMatrix(val data: DataSet[IndexedRow],
 
 object DistributedRowMatrix {
 
-  type MatrixRowIndex = Int
-
   /**
     * Builds a DistributedRowMatrix from a dataset in COO
     * @param isSorted If false, sorts the row to properly build the matrix representation.
     *                 If already sorted, set this parameter to true to skip sorting.
     * @return
     */
-  def fromCOO(data: DataSet[(Int, Int, Double)],
+  def fromCOO(data: DataSet[(MatrixRowIndex, MatrixColIndex, Double)],
               numRows: Int,
               numCols: Int,
               isSorted: Boolean = false): DistributedRowMatrix = {
-    val vectorData: DataSet[(Int, SparseVector)] = data
+    val vectorData: DataSet[(MatrixRowIndex, SparseVector)] = data
       .groupBy(0)
       .reduceGroup(sparseRow => {
         require(sparseRow.nonEmpty)
@@ -185,7 +183,7 @@ object DistributedRowMatrix {
   }
 }
 
-case class IndexedRow(rowIndex: Int, values: Vector)
+case class IndexedRow(rowIndex: MatrixRowIndex, values: Vector)
     extends Ordered[IndexedRow] {
 
   def compare(other: IndexedRow) = this.rowIndex.compare(other.rowIndex)

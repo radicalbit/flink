@@ -15,28 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics.util;
 
-import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.TaskMetricGroup;
-import org.apache.flink.util.AbstractID;
+package org.apache.flink.api.table.runtime.aggregate
 
-public class DummyTaskMetricGroup extends TaskMetricGroup {
-	
-	public DummyTaskMetricGroup() {
-		super(new DummyMetricRegistry(), new DummyJobMetricGroup(), new AbstractID(), new AbstractID(), 0, "task");
-	}
+class CountAggregateTest extends AggregateTestBase[Long] {
 
-	public DummyOperatorMetricGroup addOperator(String name) {
-		return new DummyOperatorMetricGroup();
-	}
+  override def inputValueSets: Seq[Seq[_]] = Seq(
+    Seq("a", "b", null, "c", null, "d", "e", null, "f")
+  )
 
-	@Override
-	protected void addMetric(String name, Metric metric) {}
+  override def expectedResults: Seq[Long] = Seq(6L)
 
-	@Override
-	public MetricGroup addGroup(String name) {
-		return new DummyMetricGroup();
-	}
+  override def aggregator: Aggregate[Long] = new CountAggregate()
 }

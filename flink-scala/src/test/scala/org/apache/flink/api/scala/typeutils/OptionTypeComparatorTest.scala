@@ -15,33 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics.util;
+package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.api.common.typeutils.ComparatorTestBase
+import org.apache.flink.api.common.typeutils.base.{StringComparator, StringSerializer}
 
-import java.util.List;
+class OptionTypeComparatorTest extends ComparatorTestBase[Option[String]] {
+  override protected def createComparator(ascending: Boolean) = {
+    new OptionTypeComparator[String](ascending, new StringComparator(ascending))
+  }
 
-public class DummyReporter implements MetricReporter {
-	@Override
-	public void open(Configuration config) {
-	}
+  override protected def createSerializer() = new OptionSerializer[String](new StringSerializer)
 
-	@Override
-	public void close() {
-	}
-
-	@Override
-	public void notifyOfAddedMetric(Metric metric, String name) {
-	}
-
-	@Override
-	public void notifyOfRemovedMetric(Metric metric, String name) {
-	}
-
-	@Override
-	public String generateName(String name, List<String> scope) {
-		return "";
-	}
+  override protected def getSortedTestData = Array(None, Some("a"), Some("b"), Some("c"))
 }

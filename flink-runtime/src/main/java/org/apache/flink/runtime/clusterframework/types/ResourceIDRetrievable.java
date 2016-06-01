@@ -15,28 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.metrics.util;
+package org.apache.flink.runtime.clusterframework.types;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.TaskManagerMetricGroup;
+/**
+ * An interface to retrieve the ResourceID of an object.
+ */
+public interface ResourceIDRetrievable {
 
-public class DummyTaskManagerMetricGroup extends TaskManagerMetricGroup {
-	
-	public DummyTaskManagerMetricGroup() {
-		super(new DummyMetricRegistry(), "host", "id");
-	}
+	ResourceID getResourceID();
 
-	public DummyJobMetricGroup addJob(JobID id, String name) {
-		return new DummyJobMetricGroup();
-	}
-
-	@Override
-	protected void addMetric(String name, Metric metric) {}
-
-	@Override
-	public MetricGroup addGroup(String name) {
-		return new DummyMetricGroup();
-	}
 }

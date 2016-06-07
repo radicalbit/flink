@@ -149,8 +149,7 @@ class BlockMatrix(
 
     //Checking that the two matrices are compatible for multiplication.
     require(this.getBlockCols == other.getBlockRows)
-    require(this.getColsPerBlock == other.getColsPerBlock)
-    require(this.getRowsPerBlock == other.getRowsPerBlock)
+    require(this.getColsPerBlock == other.getRowsPerBlock)
 
     /*BlockID is converted to mapped coordinates that will be required to
       group blocks together.*/

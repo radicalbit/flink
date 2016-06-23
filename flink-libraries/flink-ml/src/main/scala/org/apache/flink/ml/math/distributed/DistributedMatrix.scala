@@ -18,17 +18,22 @@
 
 package org.apache.flink.ml.math.distributed
 
-/**
-  * Common trait used by distributed data structures representing a matrix.
-  */
+/** Common trait used by distributed data structures representing a matrix. */
 trait DistributedMatrix {
-
+  /** Returns number of rows in matrix.
+    *
+    * @return Number of rows
+    */
   def numRows: Int
-  def numCols: Int
 
+  /** Returns number of columns in matrix.
+    *
+    * @return Number of columns
+    */
+  def numCols: Int
 }
 
-object DistributedMatrix{
+object DistributedMatrix {
   type MatrixColIndex = Int
   type MatrixRowIndex = Int
 }

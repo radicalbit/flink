@@ -18,7 +18,6 @@
 
 package org.apache.flink.graph.asm.degree.annotate.undirected;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase.JoinHint;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -28,9 +27,12 @@ import org.apache.flink.graph.GraphAlgorithm;
 import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.asm.degree.annotate.DegreeAnnotationFunctions.JoinEdgeWithVertexDegree;
 import org.apache.flink.types.LongValue;
+import org.apache.flink.util.Preconditions;
+
+import static org.apache.flink.api.common.ExecutionConfig.PARALLELISM_DEFAULT;
 
 /**
- * Annotates edges of an undirected graph with degree of the source ID.
+ * Annotates edges of an undirected graph with degree of the source vertex.
  *
  * @param <K> ID type
  * @param <VV> vertex value type
@@ -42,7 +44,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 	// Optional configuration
 	private boolean reduceOnTargetId = false;
 
-	private int parallelism = ExecutionConfig.PARALLELISM_UNKNOWN;
+	private int parallelism = PARALLELISM_DEFAULT;
 
 	/**
 	 * The degree can be counted from either the edge source or target IDs.
@@ -66,6 +68,9 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 	 * @return this
 	 */
 	public EdgeSourceDegree<K, VV, EV> setParallelism(int parallelism) {
+		Preconditions.checkArgument(parallelism > 0 || parallelism == PARALLELISM_DEFAULT,
+			"The parallelism must be greater than zero.");
+
 		this.parallelism = parallelism;
 
 		return this;
@@ -85,7 +90,7 @@ implements GraphAlgorithm<K, VV, EV, DataSet<Edge<K, Tuple2<EV, LongValue>>>> {
 			.join(vertexDegrees, JoinHint.REPARTITION_HASH_SECOND)
 			.where(0)
 			.equalTo(0)
-			.with(new JoinEdgeWithVertexDegree<K, EV>())
+			.with(new JoinEdgeWithVertexDegree<K, EV, LongValue>())
 				.setParallelism(parallelism)
 				.name("Edge source degree");
 	}

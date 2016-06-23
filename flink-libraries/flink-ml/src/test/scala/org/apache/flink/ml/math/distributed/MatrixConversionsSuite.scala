@@ -45,7 +45,6 @@ class MatrixConversionsSuite
 
     val d1 =
       DistributedRowMatrix.fromCOO(env.fromCollection(rawSampleData), 4, 4)
-    //val blockMatrix = d1.toBlockMatrix(2, 2).getDataset.collect
 
     val block0 = Block.apply(
         SparseMatrix.fromCOO(2,

@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.1.1</version>
+	<version>1.1.1-rbp-001-SNAPSHOT</version>
 
 	<name>flink</name>
 	<packaging>pom</packaging>
@@ -48,6 +48,19 @@ under the License.
 		<connection>git@github.com:apache/flink.git</connection>
 		<developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/flink.git</developerConnection>
 	</scm>
+
+	<distributionManagement>
+    <repository>
+        <id>io.radicalbit.public-repo-releases</id>
+        <name>Radicalbit Releases Repository</name>
+        <url>https://public-repo.radicalbit.io/maven/repository/internal/</url>
+    </repository>
+    <snapshotRepository>
+        <id>io.radicalbit.public-repo-snapshots</id>
+        <name>Radicalbit Snapshots Repository</name>
+        <url>https://public-repo.radicalbit.io/maven/repository/snapshots/</url>
+    </snapshotRepository>
+</distributionManagement>
 
 	<modules>
 		<!--- Dummy module to force execution of the Maven Shade plugin (see Shade plugin below) -->
@@ -115,7 +128,7 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>force-shading</artifactId>
-			<version>1.1.1</version>
+			<version>1.1.1-rbp-001-SNAPSHOT</version>
 		</dependency>
 
 		<!-- Add the 'javax.annotation' annotations (JSR305), such as '@Nullable' -->
@@ -404,13 +417,16 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
+	
+
+
 		
 		<!-- Profile to switch to Scala Version 2.11 -->
 		<profile>
 			<id>scala-2.11</id>
 			<activation>
 				<property>
-					<name>scala-2.11</name>
+					<name>!scala-2.11</name>
 				</property>
 			</activation>
 			<properties>
@@ -430,7 +446,7 @@ under the License.
 			</activation>
 			<properties>
 				<hadoop.version>${hadoop-one.version}</hadoop.version>
-				<shading-artifact.name>flink-shaded-hadoop1_2.10</shading-artifact.name>
+				<shading-artifact.name>flink-shaded-hadoop1_2.11</shading-artifact.name>
 				<shading-artifact-module.name>flink-shaded-hadoop1</shading-artifact-module.name>
 			</properties>
 		</profile>
@@ -532,7 +548,7 @@ under the License.
 					<plugin>
 						<artifactId>maven-clean-plugin</artifactId>
 						<version>2.5</version><!--$NO-MVN-MAN-VER$-->
-						<executions>
+					<executions>
 							<execution>
 								<id>clean-target</id>
 								<phase>generate-sources</phase>
@@ -635,6 +651,28 @@ under the License.
 							</execution>
 						</executions>
 					</plugin>
+				<plugin>
+                               <version>2.18.1</version><!--$NO-MVN-MAN-VER$-->
+                               <executions>
+                                       <execution>
+                                               <goals>
+                                                       <goal>integration-test</goal>
+                                                       <goal>verify</goal>
+                                               </goals>
+                                       </execution>
+                               </executions>
+                               <configuration>
+                                       <forkCount>${flink.forkCount}</forkCount>
+                                       <reuseForks>false</reuseForks>
+                                       <systemPropertyVariables>
+                                               <!-- we need the "0" in front here because for some reason
+                                                 the property is null when we have just the variable-->
+                                               <forkNumber>0${surefire.forkNumber}</forkNumber>
+                                       </systemPropertyVariables>
+                                       <argLine>-Xms256m -Xmx800m -Dlog4j.configuration=${log4j.configuration} -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+                               </configuration>
+                       </plugin>
+
 				</plugins>
 			</build>
 			<dependencies>

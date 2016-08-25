@@ -17,8 +17,8 @@
 # limitations under the License.
 ################################################################################
 
-OLD="1.0-SNAPSHOT"
-NEW="1.1-SNAPSHOT"
+OLD="1.1.1-rbp-001"
+NEW="1.1.1-rbp-001-SNAPSHOT"
 
 
 HERE=` basename "$PWD"`

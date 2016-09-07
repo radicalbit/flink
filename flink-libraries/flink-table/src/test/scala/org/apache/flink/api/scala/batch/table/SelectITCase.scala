@@ -34,24 +34,28 @@ import org.junit.runners.Parameterized
 import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
-class SelectITCase(
-    mode: TestExecutionMode,
-    configMode: TableConfigMode)
-  extends TableProgramsTestBase(mode, configMode) {
+class SelectITCase(mode: TestExecutionMode, configMode: TableConfigMode)
+    extends TableProgramsTestBase(mode, configMode) {
 
   @Test
   def testSimpleSelectAll(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).select('_1, '_2, '_3)
+    val t = CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv)
+      .select('_1, '_2, '_3)
 
-    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-      "7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-      "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
-      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
-      "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val expected =
+      "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
+      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" +
+      "6,3,Luke Skywalker\n" + "7,4,Comment#1\n" + "8,4,Comment#2\n" +
+      "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5,Comment#5\n" +
+      "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
+      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" +
+      "18,6,Comment#12\n" + "19,6,Comment#13\n" + "20,6,Comment#14\n" +
+      "21,6,Comment#15\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -61,14 +65,20 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c).select('a, 'b, 'c)
+    val t = CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .select('a, 'b, 'c)
 
-    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-      "7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-      "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
-      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
-      "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val expected =
+      "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
+      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" +
+      "6,3,Luke Skywalker\n" + "7,4,Comment#1\n" + "8,4,Comment#2\n" +
+      "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5,Comment#5\n" +
+      "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
+      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" +
+      "18,6,Comment#12\n" + "19,6,Comment#13\n" + "20,6,Comment#14\n" +
+      "21,6,Comment#15\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -78,13 +88,17 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val t = CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv)
       .select('_1 as 'a, '_2 as 'b, '_1 as 'c)
       .select('a, 'b)
 
-    val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
-      "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
-      "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
+    val expected =
+      "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
+      "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" +
+      "14,5\n" + "15,5\n" + "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" +
+      "20,6\n" + "21,6\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -94,13 +108,17 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+    val t = CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv)
       .select('_1 as 'a, '_2 as 'b, '_3 as 'c)
       .select('a, 'b)
 
-    val expected = "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
-      "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" + "14,5\n" + "15,5\n" +
-      "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" + "20,6\n" + "21,6\n"
+    val expected =
+      "1,1\n" + "2,2\n" + "3,2\n" + "4,3\n" + "5,3\n" + "6,3\n" + "7,4\n" +
+      "8,4\n" + "9,4\n" + "10,4\n" + "11,5\n" + "12,5\n" + "13,5\n" +
+      "14,5\n" + "15,5\n" + "16,6\n" + "17,6\n" + "18,6\n" + "19,6\n" +
+      "20,6\n" + "21,6\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -110,7 +128,9 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv, 'a, 'b, 'c)
       // must fail. Field 'foo does not exist
       .select('a, 'foo)
   }
@@ -120,9 +140,13 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv, 'a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'foo
-      .select('a + 1 as 'foo, 'b + 2 as 'foo).toDataSet[Row].print()
+      .select('a + 1 as 'foo, 'b + 2 as 'foo)
+      .toDataSet[Row]
+      .print()
   }
 
   @Test(expected = classOf[ValidationException])
@@ -130,9 +154,13 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c)
+    CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv, 'a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'a
-      .select('a, 'b as 'a).toDataSet[Row].print()
+      .select('a, 'b as 'a)
+      .toDataSet[Row]
+      .print()
   }
 
   @Test
@@ -140,14 +168,20 @@ class SelectITCase(
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = TableEnvironment.getTableEnvironment(env, config)
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c).select('*)
+    val t = CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .select('*)
 
-    val expected = "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
-      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" + "6,3,Luke Skywalker\n" +
-      "7,4,Comment#1\n" + "8,4,Comment#2\n" + "9,4,Comment#3\n" + "10,4,Comment#4\n" +
-      "11,5,Comment#5\n" + "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
-      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" + "18,6,Comment#12\n" +
-      "19,6,Comment#13\n" + "20,6,Comment#14\n" + "21,6,Comment#15\n"
+    val expected =
+      "1,1,Hi\n" + "2,2,Hello\n" + "3,2,Hello world\n" +
+      "4,3,Hello world, how are you?\n" + "5,3,I am fine.\n" +
+      "6,3,Luke Skywalker\n" + "7,4,Comment#1\n" + "8,4,Comment#2\n" +
+      "9,4,Comment#3\n" + "10,4,Comment#4\n" + "11,5,Comment#5\n" +
+      "12,5,Comment#6\n" + "13,5,Comment#7\n" + "14,5,Comment#8\n" +
+      "15,5,Comment#9\n" + "16,6,Comment#10\n" + "17,6,Comment#11\n" +
+      "18,6,Comment#12\n" + "19,6,Comment#13\n" + "20,6,Comment#14\n" +
+      "21,6,Comment#15\n"
     val results = t.toDataSet[Row].collect()
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
@@ -165,7 +199,9 @@ class SelectITCase(
     }
 
     try {
-      CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
+      CollectionDataSets
+        .get3TupleDataSet(env)
+        .toTable(tEnv)
         .select('_1 as '*, '_2 as 'b, '_1 as 'c)
       fail("ValidationException expected")
     } catch {
@@ -180,11 +216,30 @@ class SelectITCase(
     }
 
     try {
-      CollectionDataSets.get3TupleDataSet(env).toTable(tEnv, 'a, 'b, 'c).select('*, 'b)
+      CollectionDataSets
+        .get3TupleDataSet(env)
+        .toTable(tEnv, 'a, 'b, 'c)
+        .select('*, 'b)
       fail("ValidationException expected")
     } catch {
       case _: ValidationException => //ignore
     }
   }
 
+  @Test
+  def testInSelect():Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = TableEnvironment.getTableEnvironment(env, config)
+
+    val t1 = CollectionDataSets
+      .get3TupleDataSet(env)
+      .toTable(tEnv,'a,'b,'c)
+
+
+    val t2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+
+    val res= t1.join(t2).where('a in 'd)
+    val collected=res.toDataSet[Row].collect()
+
+  }
 }

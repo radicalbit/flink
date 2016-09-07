@@ -381,6 +381,10 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     case l ~ _ ~ r => LessThanOrEqual(l, r)
   }
 
+  lazy val in:PackratParser[Expression] = term ~ "IN" ~ term ^^{
+    case l ~ _ ~ r => In(l,r)
+  }
+
   lazy val comparison: PackratParser[Expression] =
       equalTo | notEqualTo |
       greaterThan | greaterThanOrEqual |

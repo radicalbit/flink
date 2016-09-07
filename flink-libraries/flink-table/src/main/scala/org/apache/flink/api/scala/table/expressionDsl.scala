@@ -63,6 +63,8 @@ trait ImplicitExpressionOperations {
   def isNull = IsNull(expr)
   def isNotNull = IsNotNull(expr)
 
+  def in(other:Expression)=In(expr,other)
+
   /**
     * Returns true if given boolean expression is true. False otherwise (for null and false).
     */

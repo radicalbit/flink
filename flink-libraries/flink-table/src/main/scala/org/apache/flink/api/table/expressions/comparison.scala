@@ -142,16 +142,3 @@ case class IsFalse(child: Expression) extends UnaryExpression {
   override private[flink] def resultType = BOOLEAN_TYPE_INFO
 }
 
-case class In(left: Expression, right: Expression) extends BinaryComparison {
-  override def toString = s"$left IN $right"
-
-  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.IN
-
-  override private[flink] def validateInput(): ExprValidationResult =
-    (left.resultType, right.resultType) match {
-      case (lType, rType) if lType == rType => ValidationSuccess
-      case (lType, rType) =>
-        ValidationFailure(s"Inclusion predicate on incompatible types: $lType and $rType")
-    }
-}
-

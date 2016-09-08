@@ -19,8 +19,11 @@ package org.apache.flink.api.table.plan.logical
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.logical.LogicalProject
 import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.calcite.sql.SqlOperator
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -32,22 +35,26 @@ import org.apache.flink.api.table.typeutils.TypeConverter
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extends UnaryNode {
+case class Project(projectList: Seq[NamedExpression], child: LogicalNode)
+    extends UnaryNode {
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
     val afterResolve = super.resolveExpressions(tableEnv).asInstanceOf[Project]
-    val newProjectList =
-      afterResolve.projectList.zipWithIndex.map { case (e, i) =>
+    val newProjectList = afterResolve.projectList.zipWithIndex.map {
+      case (e, i) =>
         e match {
-          case u @ UnresolvedAlias(c) => c match {
-            case ne: NamedExpression => ne
-            case expr if !expr.valid => u
-            case c @ Cast(ne: NamedExpression, tp) => Alias(c, s"${ne.name}-$tp")
-            case other => Alias(other, s"_c$i")
-          }
+          case u @ UnresolvedAlias(c) =>
+            c match {
+              case ne: NamedExpression => ne
+              case expr if !expr.valid => u
+              case c @ Cast(ne: NamedExpression, tp) =>
+                Alias(c, s"${ne.name}-$tp")
+              case other => Alias(other, s"_c$i")
+            }
           case _ =>
-            throw new RuntimeException("This should never be called and probably points to a bug.")
+            throw new RuntimeException(
+                "This should never be called and probably points to a bug.")
         }
     }
     Project(newProjectList, child)
@@ -80,16 +87,18 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
     resolvedProject
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     val allAlias = projectList.forall(_.isInstanceOf[Alias])
     child.construct(relBuilder)
     if (allAlias) {
       // Calcite's RelBuilder does not translate identity projects even if they rename fields.
       //   Add a projection ourselves (will be automatically removed by translation rules).
-      val project = LogicalProject.create(relBuilder.peek(),
-        projectList.map(_.toRexNode(relBuilder)).asJava,
-        projectList.map(_.name).asJava)
-      relBuilder.build()  // pop previous relNode
+      val project = LogicalProject.create(
+          relBuilder.peek(),
+          projectList.map(_.toRexNode(relBuilder)).asJava,
+          projectList.map(_.name).asJava)
+      relBuilder.build() // pop previous relNode
       relBuilder.push(project)
     } else {
       relBuilder.project(projectList.map(_.toRexNode(relBuilder)): _*)
@@ -97,11 +106,13 @@ case class Project(projectList: Seq[NamedExpression], child: LogicalNode) extend
   }
 }
 
-case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends UnaryNode {
+case class AliasNode(aliasList: Seq[Expression], child: LogicalNode)
+    extends UnaryNode {
   override def output: Seq[Attribute] =
     throw UnresolvedException("Invalid call to output on AliasNode")
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder =
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder =
     throw UnresolvedException("Invalid call to toRelNode on AliasNode")
 
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
@@ -109,14 +120,16 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
       failValidation("Aliasing more fields than we actually have")
     } else if (!aliasList.forall(_.isInstanceOf[UnresolvedFieldReference])) {
       failValidation("Alias only accept name expressions as arguments")
-    } else if (!aliasList.forall(_.asInstanceOf[UnresolvedFieldReference].name != "*")) {
+    } else if (!aliasList.forall(
+                   _.asInstanceOf[UnresolvedFieldReference].name != "*")) {
       failValidation("Alias can not accept '*' as name")
     } else {
       val names = aliasList.map(_.asInstanceOf[UnresolvedFieldReference].name)
       val input = child.output
-      Project(
-        names.zip(input).map { case (name, attr) =>
-          Alias(attr, name)} ++ input.drop(names.length), child)
+      Project(names.zip(input).map {
+        case (name, attr) =>
+          Alias(attr, name)
+      } ++ input.drop(names.length), child)
     }
   }
 }
@@ -124,7 +137,8 @@ case class AliasNode(aliasList: Seq[Expression], child: LogicalNode) extends Una
 case class Distinct(child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
     relBuilder.distinct()
   }
@@ -140,7 +154,8 @@ case class Distinct(child: LogicalNode) extends UnaryNode {
 case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
     relBuilder.sort(order.map(_.toRexNode(relBuilder)).asJava)
   }
@@ -153,10 +168,12 @@ case class Sort(order: Seq[Ordering], child: LogicalNode) extends UnaryNode {
   }
 }
 
-case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends UnaryNode {
+case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode)
+    extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
     relBuilder.limit(offset, fetch)
   }
@@ -166,7 +183,8 @@ case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends Unary
       failValidation(s"Limit on stream tables is currently not supported.")
     }
     if (!child.validate(tableEnv).isInstanceOf[Sort]) {
-      failValidation(s"Limit operator must be preceded by an OrderBy operator.")
+      failValidation(
+          s"Limit operator must be preceded by an OrderBy operator.")
     }
     if (offset < 0) {
       failValidation(s"Offset should be greater than or equal to zero.")
@@ -175,10 +193,12 @@ case class Limit(offset: Int, fetch: Int = -1, child: LogicalNode) extends Unary
   }
 }
 
-case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
+case class Filter(condition: Expression, child: LogicalNode)
+    extends UnaryNode {
   override def output: Seq[Attribute] = child.output
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
     relBuilder.filter(condition.toRexNode(relBuilder))
   }
@@ -186,17 +206,18 @@ case class Filter(condition: Expression, child: LogicalNode) extends UnaryNode {
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
     val resolvedFilter = super.validate(tableEnv).asInstanceOf[Filter]
     if (resolvedFilter.condition.resultType != BOOLEAN_TYPE_INFO) {
-      failValidation(s"Filter operator requires a boolean expression as input," +
-        s" but ${resolvedFilter.condition} is of type ${resolvedFilter.condition.resultType}")
+      failValidation(
+          s"Filter operator requires a boolean expression as input," +
+          s" but ${resolvedFilter.condition} is of type ${resolvedFilter.condition.resultType}")
     }
     resolvedFilter
   }
 }
 
-case class Aggregate(
-    groupingExpressions: Seq[Expression],
-    aggregateExpressions: Seq[NamedExpression],
-    child: LogicalNode) extends UnaryNode {
+case class Aggregate(groupingExpressions: Seq[Expression],
+                     aggregateExpressions: Seq[NamedExpression],
+                     child: LogicalNode)
+    extends UnaryNode {
 
   override def output: Seq[Attribute] = {
     (groupingExpressions ++ aggregateExpressions) map {
@@ -205,14 +226,16 @@ case class Aggregate(
     }
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     child.construct(relBuilder)
     relBuilder.aggregate(
-      relBuilder.groupKey(groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
-      aggregateExpressions.map {
-        case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
-        case _ => throw new RuntimeException("This should never happen.")
-      }.asJava)
+        relBuilder.groupKey(
+            groupingExpressions.map(_.toRexNode(relBuilder)).asJava),
+        aggregateExpressions.map {
+          case Alias(agg: Aggregation, name) => agg.toAggCall(name)(relBuilder)
+          case _ => throw new RuntimeException("This should never happen.")
+        }.asJava)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = {
@@ -233,14 +256,13 @@ case class Aggregate(
           child.preOrderVisit {
             case agg: Aggregation =>
               failValidation(
-                "It's not allowed to use an aggregate function as " +
+                  "It's not allowed to use an aggregate function as " +
                   "input of another aggregate function")
             case _ => // OK
           }
         }
       case a: Attribute if !groupingExprs.exists(_.checkEquals(a)) =>
-        failValidation(
-          s"expression '$a' is invalid because it is neither" +
+        failValidation(s"expression '$a' is invalid because it is neither" +
             " present in group by nor an aggregate function")
       case e if groupingExprs.exists(_.checkEquals(e)) => // OK
       case e => e.children.foreach(validateAggregateExpression)
@@ -249,7 +271,7 @@ case class Aggregate(
     def validateGroupingExpression(expr: Expression): Unit = {
       if (!expr.resultType.isKeyType) {
         failValidation(
-          s"expression $expr cannot be used as a grouping expression " +
+            s"expression $expr cannot be used as a grouping expression " +
             "because it's not a valid key type which must be hashable and comparable")
       }
     }
@@ -257,10 +279,12 @@ case class Aggregate(
   }
 }
 
-case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
+case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean)
+    extends BinaryNode {
   override def output: Seq[Attribute] = left.output
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     left.construct(relBuilder)
     right.construct(relBuilder)
     relBuilder.minus(all)
@@ -273,25 +297,30 @@ case class Minus(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
 
     val resolvedMinus = super.validate(tableEnv).asInstanceOf[Minus]
     if (left.output.length != right.output.length) {
-      failValidation(s"Minus two table of different column sizes:" +
-        s" ${left.output.size} and ${right.output.size}")
+      failValidation(
+          s"Minus two table of different column sizes:" +
+          s" ${left.output.size} and ${right.output.size}")
     }
-    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
-      l.resultType == r.resultType
+    val sameSchema = left.output.zip(right.output).forall {
+      case (l, r) =>
+        l.resultType == r.resultType
     }
     if (!sameSchema) {
-      failValidation(s"Minus two table of different schema:" +
-        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+      failValidation(
+          s"Minus two table of different schema:" +
+          s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
+          s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
     }
     resolvedMinus
   }
 }
 
-case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
+case class Union(left: LogicalNode, right: LogicalNode, all: Boolean)
+    extends BinaryNode {
   override def output: Seq[Attribute] = left.output
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     left.construct(relBuilder)
     right.construct(relBuilder)
     relBuilder.union(all)
@@ -304,25 +333,30 @@ case class Union(left: LogicalNode, right: LogicalNode, all: Boolean) extends Bi
 
     val resolvedUnion = super.validate(tableEnv).asInstanceOf[Union]
     if (left.output.length != right.output.length) {
-      failValidation(s"Union two tables of different column sizes:" +
-        s" ${left.output.size} and ${right.output.size}")
+      failValidation(
+          s"Union two tables of different column sizes:" +
+          s" ${left.output.size} and ${right.output.size}")
     }
-    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
-      l.resultType == r.resultType
+    val sameSchema = left.output.zip(right.output).forall {
+      case (l, r) =>
+        l.resultType == r.resultType
     }
     if (!sameSchema) {
-      failValidation(s"Union two tables of different schema:" +
-        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+      failValidation(
+          s"Union two tables of different schema:" +
+          s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
+          s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
     }
     resolvedUnion
   }
 }
 
-case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extends BinaryNode {
+case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean)
+    extends BinaryNode {
   override def output: Seq[Attribute] = left.output
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     left.construct(relBuilder)
     right.construct(relBuilder)
     relBuilder.intersect(all)
@@ -335,53 +369,58 @@ case class Intersect(left: LogicalNode, right: LogicalNode, all: Boolean) extend
 
     val resolvedIntersect = super.validate(tableEnv).asInstanceOf[Intersect]
     if (left.output.length != right.output.length) {
-      failValidation(s"Intersect two tables of different column sizes:" +
-        s" ${left.output.size} and ${right.output.size}")
+      failValidation(
+          s"Intersect two tables of different column sizes:" +
+          s" ${left.output.size} and ${right.output.size}")
     }
     // allow different column names between tables
-    val sameSchema = left.output.zip(right.output).forall { case (l, r) =>
-      l.resultType == r.resultType
+    val sameSchema = left.output.zip(right.output).forall {
+      case (l, r) =>
+        l.resultType == r.resultType
     }
     if (!sameSchema) {
-      failValidation(s"Intersect two tables of different schema:" +
-        s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
-        s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
+      failValidation(
+          s"Intersect two tables of different schema:" +
+          s" [${left.output.map(a => (a.name, a.resultType)).mkString(", ")}] and" +
+          s" [${right.output.map(a => (a.name, a.resultType)).mkString(", ")}]")
     }
     resolvedIntersect
   }
 }
 
-case class Join(
-    left: LogicalNode,
-    right: LogicalNode,
-    joinType: JoinType,
-    condition: Option[Expression]) extends BinaryNode {
+case class Join(left: LogicalNode,
+                right: LogicalNode,
+                joinType: JoinType,
+                condition: Option[Expression])
+    extends BinaryNode {
 
   override def output: Seq[Attribute] = {
     left.output ++ right.output
   }
 
-  private case class JoinFieldReference(
-    name: String,
-    resultType: TypeInformation[_],
-    left: LogicalNode,
-    right: LogicalNode) extends Attribute {
+  private case class JoinFieldReference(name: String,
+                                        resultType: TypeInformation[_],
+                                        left: LogicalNode,
+                                        right: LogicalNode)
+      extends Attribute {
 
     val isFromLeftInput = left.output.map(_.name).contains(name)
 
-    val (indexInInput, indexInJoin) = if (isFromLeftInput) {
-      val indexInLeft = left.output.map(_.name).indexOf(name)
-      (indexInLeft, indexInLeft)
-    } else {
-      val indexInRight = right.output.map(_.name).indexOf(name)
-      (indexInRight, indexInRight + left.output.length)
-    }
+    val (indexInInput, indexInJoin) =
+      if (isFromLeftInput) {
+        val indexInLeft = left.output.map(_.name).indexOf(name)
+        (indexInLeft, indexInLeft)
+      } else {
+        val indexInRight = right.output.map(_.name).indexOf(name)
+        (indexInRight, indexInRight + left.output.length)
+      }
 
     override def toString = s"'$name"
 
     override def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
       // look up type of field
-      val fieldType = relBuilder.field(2, if (isFromLeftInput) 0 else 1, name).getType
+      val fieldType =
+        relBuilder.field(2, if (isFromLeftInput) 0 else 1, name).getType
       // create a new RexInputRef with index offset
       new RexInputRef(indexInJoin, fieldType)
     }
@@ -398,22 +437,22 @@ case class Join(
   override def resolveExpressions(tableEnv: TableEnvironment): LogicalNode = {
     val node = super.resolveExpressions(tableEnv).asInstanceOf[Join]
     val partialFunction: PartialFunction[Expression, Expression] = {
-      case field: ResolvedFieldReference => JoinFieldReference(
-        field.name,
-        field.resultType,
-        left,
-        right)
+      case field: ResolvedFieldReference =>
+        JoinFieldReference(field.name, field.resultType, left, right)
     }
-    val resolvedCondition = node.condition.map(_.postOrderTransform(partialFunction))
+    val resolvedCondition =
+      node.condition.map(_.postOrderTransform(partialFunction))
     Join(node.left, node.right, node.joinType, resolvedCondition)
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     left.construct(relBuilder)
     right.construct(relBuilder)
-    relBuilder.join(
-      TypeConverter.flinkJoinTypeToRelType(joinType),
-      condition.map(_.toRexNode(relBuilder)).getOrElse(relBuilder.literal(true)))
+    relBuilder.join(TypeConverter.flinkJoinTypeToRelType(joinType),
+                    condition
+                      .map(_.toRexNode(relBuilder))
+                      .getOrElse(relBuilder.literal(true)))
   }
 
   private def ambiguousName: Set[String] =
@@ -426,10 +465,12 @@ case class Join(
 
     val resolvedJoin = super.validate(tableEnv).asInstanceOf[Join]
     if (!resolvedJoin.condition.forall(_.resultType == BOOLEAN_TYPE_INFO)) {
-      failValidation(s"Filter operator requires a boolean expression as input, " + 
-        s"but ${resolvedJoin.condition} is of type ${resolvedJoin.joinType}")
+      failValidation(
+          s"Filter operator requires a boolean expression as input, " +
+          s"but ${resolvedJoin.condition} is of type ${resolvedJoin.joinType}")
     } else if (ambiguousName.nonEmpty) {
-      failValidation(s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
+      failValidation(
+          s"join relations with ambiguous names: ${ambiguousName.mkString(", ")}")
     }
 
     resolvedJoin.condition.foreach(testJoinCondition)
@@ -438,43 +479,51 @@ case class Join(
 
   private def testJoinCondition(expression: Expression): Unit = {
 
-    def checkIfJoinCondition(exp : BinaryComparison) = exp.children match {
-        case (x : JoinFieldReference) :: (y : JoinFieldReference) :: Nil
-          if x.isFromLeftInput != y.isFromLeftInput => Unit
-        case x => failValidation(
-          s"Invalid non-join predicate $exp. For non-join predicates use Table#where.")
-      }
+    def checkIfJoinCondition(exp: BinaryComparison) = exp.children match {
+      case (x: JoinFieldReference) :: (y: JoinFieldReference) :: Nil
+          if x.isFromLeftInput != y.isFromLeftInput =>
+        Unit
+      case x =>
+        failValidation(
+            s"Invalid non-join predicate $exp. For non-join predicates use Table#where.")
+    }
 
     var equiJoinFound = false
-    def validateConditions(exp: Expression, isAndBranch: Boolean): Unit = exp match {
-      case x: And => x.children.foreach(validateConditions(_, isAndBranch))
-      case x: Or => x.children.foreach(validateConditions(_, isAndBranch = false))
-      case x: EqualTo =>
-        if (isAndBranch) {
-          equiJoinFound = true
-        }
-        checkIfJoinCondition(x)
-      case x: BinaryComparison => checkIfJoinCondition(x)
-      case x => failValidation(
-        s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
-    }
+    def validateConditions(exp: Expression, isAndBranch: Boolean): Unit =
+      exp match {
+        case x: And => x.children.foreach(validateConditions(_, isAndBranch))
+        case x: Or =>
+          x.children.foreach(validateConditions(_, isAndBranch = false))
+        case x: EqualTo =>
+          if (isAndBranch) {
+            equiJoinFound = true
+          }
+          checkIfJoinCondition(x)
+        case x: BinaryComparison => checkIfJoinCondition(x)
+        case x =>
+          failValidation(
+              s"Unsupported condition type: ${x.getClass.getSimpleName}. Condition: $x")
+      }
 
     validateConditions(expression, isAndBranch = true)
     if (!equiJoinFound) {
-      failValidation(s"Invalid join condition: $expression. At least one equi-join required.")
+      failValidation(
+          s"Invalid join condition: $expression. At least one equi-join required.")
     }
   }
 }
 
-case class CatalogNode(
-    tableName: String,
-    rowType: RelDataType) extends LeafNode {
+
+case class CatalogNode(tableName: String, rowType: RelDataType)
+    extends LeafNode {
 
   val output: Seq[Attribute] = rowType.getFieldList.asScala.map { field =>
-    ResolvedFieldReference(field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
+    ResolvedFieldReference(
+        field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     relBuilder.scan(tableName)
   }
 
@@ -484,16 +533,50 @@ case class CatalogNode(
 /**
   * Wrapper for valid logical plans generated from SQL String.
   */
-case class LogicalRelNode(
-    relNode: RelNode) extends LeafNode {
+case class LogicalRelNode(relNode: RelNode) extends LeafNode {
 
-  val output: Seq[Attribute] = relNode.getRowType.getFieldList.asScala.map { field =>
-    ResolvedFieldReference(field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
+  val output: Seq[Attribute] = relNode.getRowType.getFieldList.asScala.map {
+    field =>
+      ResolvedFieldReference(
+          field.getName, FlinkTypeFactory.toTypeInfo(field.getType))
   }
 
-  override protected[logical] def construct(relBuilder: RelBuilder): RelBuilder = {
+  override protected[logical] def construct(
+      relBuilder: RelBuilder): RelBuilder = {
     relBuilder.push(relNode)
   }
 
   override def validate(tableEnv: TableEnvironment): LogicalNode = this
+}
+
+case class In(left: LogicalNode, leftField:Expression, rightTable: Table) extends BinaryNode {
+  //TODO: Is BinaryNode the right class to extend? Is the signature correct?
+  override def toString = s"$left IN $right"
+
+  override def right=rightTable.logicalPlan
+
+  private[flink] val sqlOperator: SqlOperator = SqlStdOperatorTable.IN
+
+  override def validate(tableEnv: TableEnvironment): LogicalNode = {
+    //TODO:How to retrieve the type of "leftField"?
+    val rightOut = right.output
+
+    if (rightOut.size > 1)
+      failValidation(s"Table must have only one field")
+    else
+      (leftField.resultType, rightOut.head.resultType) match {
+        case (lType, rType) if lType == rType => this
+        case (lType, rType) =>
+          failValidation(s"Inclusion predicate on incompatible types: $lType and $rType")
+      }
+  }
+  override protected [logical] def construct(
+                          relBuilder: RelBuilder): RelBuilder = {
+    right.construct(relBuilder)
+    //TODO:how to "bind" leftField to the left Table?
+    val cond=EqualTo(leftField,right.output.head).toRexNode(relBuilder)
+    relBuilder.join(JoinRelType.INNER,cond)
+  }
+
+  override def output: Seq[Attribute] = left.output
 }

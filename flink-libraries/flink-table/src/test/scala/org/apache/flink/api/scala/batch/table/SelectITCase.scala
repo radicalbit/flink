@@ -23,7 +23,8 @@ import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase
 import org.apache.flink.api.scala.batch.utils.TableProgramsTestBase.TableConfigMode
 import org.apache.flink.api.scala.table._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.api.table.{Row, TableEnvironment, ValidationException}
+import org.apache.flink.api.table.plan.logical.In
+import org.apache.flink.api.table.{Row, Table, TableEnvironment, ValidationException}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.TestBaseUtils
 import org.junit.Assert._
@@ -238,8 +239,9 @@ class SelectITCase(mode: TestExecutionMode, configMode: TableConfigMode)
 
     val t2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
 
-    val res= t1.join(t2).where('a in 'd)
-    val collected=res.toDataSet[Row].collect()
+    //TODO:Workaround for testing purpose, waiting for an API.
+    val res= new Table(tEnv, In(t1.logicalPlan,'a,t2.select('d)).validate(tEnv))
+    tEnv.explain(res)
 
   }
 }

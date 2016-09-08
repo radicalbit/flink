@@ -355,6 +355,8 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
     "+" ^^^ { (a:Expression, b:Expression) => Plus(a,b) } |
      "-" ^^^ { (a:Expression, b:Expression) => Minus(a,b) } )
 
+
+
   // Comparison
 
   lazy val equalTo: PackratParser[Expression] = term ~ ("===" | "=") ~ term ^^ {
@@ -380,11 +382,13 @@ object ExpressionParser extends JavaTokenParsers with PackratParsers {
   lazy val lessThanOrEqual: PackratParser[Expression] = term ~ "<=" ~ term ^^ {
     case l ~ _ ~ r => LessThanOrEqual(l, r)
   }
+/*
+  lazy val table:PackratParser[Table] = ???
 
-  lazy val in:PackratParser[Expression] = term ~ "IN" ~ term ^^{
+  lazy val in:PackratParser[Expression] = term ~ "IN" ~ table ^^{
     case l ~ _ ~ r => In(l,r)
   }
-
+*/
   lazy val comparison: PackratParser[Expression] =
       equalTo | notEqualTo |
       greaterThan | greaterThanOrEqual |

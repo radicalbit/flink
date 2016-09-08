@@ -25,6 +25,7 @@ import org.apache.flink.api.table.ValidationException
 import org.apache.flink.api.table.expressions._
 import org.apache.flink.api.table.functions.ScalarFunction
 import org.apache.flink.api.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.api.table.plan.logical.In
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -122,6 +123,7 @@ object FunctionCatalog {
     "isNotNull" -> classOf[IsNotNull],
     "isTrue" -> classOf[IsTrue],
     "isFalse" -> classOf[IsFalse],
+    "in"->classOf[In],
 
     // aggregate functions
     "avg" -> classOf[Avg],

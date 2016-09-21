@@ -33,7 +33,8 @@ import org.apache.flink.runtime.jobgraph.JobStatus
 import org.apache.flink.runtime.jobmanager.scheduler.{Scheduler => FlinkScheduler}
 import org.apache.flink.runtime.jobmanager.{JobManager, SubmittedJobGraphStore}
 import org.apache.flink.runtime.leaderelection.LeaderElectionService
-import org.apache.flink.runtime.messages.JobManagerMessages.{CurrentJobStatus, JobNotFound, RequestJobStatus}
+import org.apache.flink.runtime.messages.JobManagerMessages.{CurrentJobStatus, 
+JobNotFound, RequestJobStatus}
 import org.apache.flink.runtime.messages.Messages.Acknowledge
 import org.apache.flink.runtime.metrics.{MetricRegistry => FlinkMetricRegistry}
 
@@ -41,7 +42,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 
-/** JobManager actor for execution on Yarn or Mesos. It enriches the [[JobManager]] with additional messages
+/** JobManager actor for execution on Yarn or Mesos. 
+  * It enriches the [[JobManager]] with additional messages
   * to start/administer/stop the session.
   *
   * @param flinkConfiguration Configuration object for the actor

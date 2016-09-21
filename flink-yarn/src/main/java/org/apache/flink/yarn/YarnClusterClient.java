@@ -18,9 +18,6 @@
 package org.apache.flink.yarn;
 
 import akka.actor.ActorRef;
-
-import static akka.pattern.Patterns.ask;
-
 import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
@@ -50,9 +47,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.None$;
 import scala.Option;
-import scala.Some;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.FiniteDuration;
@@ -77,7 +72,8 @@ public class YarnClusterClient extends ClusterClient {
 	private Thread clientShutdownHook = new ClientShutdownHook();
 	private PollingThread pollingRunner;
 	private final Configuration hadoopConfig;
-	// (HDFS) location of the files required to run on YARN. Needed here to delete them on shutdown.
+	// (HDFS) location of the files required to run on YARN.
+	// Needed here to delete them on shutdown.
 	private final Path sessionFilesDir;
 
 	//---------- Class internal fields -------------------
@@ -85,7 +81,7 @@ public class YarnClusterClient extends ClusterClient {
 	private final AbstractYarnClusterDescriptor clusterDescriptor;
 	private final LazApplicationClientLoader applicationClient;
 	private final FiniteDuration akkaDuration;
-	private final Timeout akkaTimeout;
+
 	private final ApplicationReport appReport;
 	private final ApplicationId appId;
 	private final String trackingURL;

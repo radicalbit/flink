@@ -1260,12 +1260,12 @@ under the License.
 		<repository>
 			<id>io.radicalbit.public-repo-releases</id>
 			<name>Radicalbit Releases Repository</name>
-			<url>https://public-repo.radicalbit.io/maven/repository/internal/</url>
+			<url>https://tools.radicalbit.io/maven/repository/internal/</url>
 		</repository>
 		<snapshotRepository>
 			<id>io.radicalbit.public-repo-snapshots</id>
 			<name>Radicalbit Snapshots Repository</name>
-			<url>https://public-repo.radicalbit.io/maven/repository/snapshots/</url>
+			<url>https://tools.radicalbit.io/maven/repository/snapshots/</url>
 		</snapshotRepository>
 	</distributionManagement>
 </project>

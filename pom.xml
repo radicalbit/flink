@@ -1287,4 +1287,17 @@ under the License.
 		</pluginManagement>
 	</build>
 
+	<distributionManagement>
+		<repository>
+			<id>io.radicalbit.public-repo-releases</id>
+			<name>Radicalbit Releases Repository</name>
+			<url>https://tools.radicalbit.io/maven/repository/internal/</url>
+		</repository>
+		<snapshotRepository>
+			<id>io.radicalbit.public-repo-snapshots</id>
+			<name>Radicalbit Snapshots Repository</name>
+			<url>https://tools.radicalbit.io/maven/repository/snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
+
 </project>

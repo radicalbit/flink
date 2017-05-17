@@ -126,7 +126,7 @@ case $STARTSTOP in
 
         # Add to pid file if successful start
         if [[ ${mypid} =~ ${IS_NUMBER} ]] && kill -0 $mypid > /dev/null 2>&1 ; then
-            echo $mypid >> $pid
+            echo $mypid > $pid
         else
             echo "Error starting $DAEMON daemon."
             exit 1
